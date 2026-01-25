@@ -968,7 +968,7 @@
                 if (check.allowed) {
                     this.navigate('employee-list');
                 } else {
-                    this.uiAlert(`⛔ Access Denied\n\n${check.reason}\n\nYou must be at the store (matching IP AND GPS) to access the portal.`);
+                    this.uiAlert(`🚫 Whoa there!\n\n${check.reason}\n\n🏪 You need to be physically at the store to access this portal. No remote clocking allowed! 😉`);
                 }
             } catch (e) {
                 this.uiAlert('Error verifying location. Please try again.');
@@ -1001,14 +1001,14 @@
                     if (currentIP === settings.storeIP) {
                         ipMatch = true;
                     } else {
-                        failureReasons.push(`IP Mismatch (Yours: ${currentIP}, Store: ${settings.storeIP})`);
+                        failureReasons.push(`🏠 Nice try! But you're not at the store... we can tell! 😏`);
                     }
                 } catch (e) {
                     console.error('IP check failed:', e);
-                    failureReasons.push('Unable to verify IP address');
+                    failureReasons.push(`🔌 Oops! We couldn't verify your connection. Try again!`);
                 }
             } else {
-                failureReasons.push('Store IP not configured');
+                failureReasons.push(`⚙️ Store location not set up yet. Contact your manager!`);
             }
 
             // 2. Check GPS (Required)
@@ -1033,22 +1033,22 @@
                                 if (distance <= (settings.radius || 100)) {
                                     gpsMatch = true;
                                 } else {
-                                    failureReasons.push(`GPS: You are ${Math.round(distance)}m away (max: ${settings.radius}m)`);
+                                    failureReasons.push(`📍 Hmm... GPS says you're having coffee somewhere else! ☕`);
                                 }
                                 resolve();
                             },
                             (error) => {
-                                failureReasons.push('GPS Location verification failed');
+                                failureReasons.push(`📱 GPS couldn't find you! Make sure location is enabled.`);
                                 resolve();
                             },
                             { enableHighAccuracy: true, timeout: 10000 }
                         );
                     });
                 } catch (e) {
-                    failureReasons.push('GPS check error');
+                    failureReasons.push(`🛰️ GPS hiccup! Please try again.`);
                 }
             } else {
-                failureReasons.push('Store GPS not configured');
+                failureReasons.push(`⚙️ Store GPS location not set up yet. Contact your manager!`);
             }
 
             if (ipMatch && gpsMatch) {
@@ -1449,7 +1449,7 @@
                     btn.onclick = () => this.clockAction(type);
                     lucide.createIcons();
                     
-                    this.uiAlert(`⛔ Clock ${type === 'in' ? 'In' : 'Out'} Denied\n\n${locationCheck.reason}\n\nYou must be at the store to clock ${type}.`);
+                    this.uiAlert(`🙅 Nope, can't do that!\n\n${locationCheck.reason}\n\n🏪 Come to the store first, then try again! We're watching... 👀`);
                     return;
                 }
             }

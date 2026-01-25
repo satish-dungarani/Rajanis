@@ -1,0 +1,3049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rajani Superstore Ltd - Time Sheet Management</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --theme-primary: #4f46e5;
+            --theme-primary-hover: #4338ca;
+            --theme-secondary: #0f172a;
+            --theme-accent: #3b82f6;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background-attachment: fixed;
+        }
+        
+        .theme-bg-primary { background-color: var(--theme-primary); }
+        .theme-bg-primary:hover { background-color: var(--theme-primary-hover); }
+        .theme-text-primary { color: var(--theme-primary); }
+        .theme-border-primary { border-color: var(--theme-primary); }
+        .theme-bg-secondary { background-color: var(--theme-secondary); }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05); 
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2); 
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3); 
+        }
+        
+        .sidebar-link.active {
+            background: linear-gradient(90deg, rgba(var(--theme-primary-rgb, 79, 70, 229), 0.3) 0%, transparent 100%);
+            color: #ffffff;
+            border-left: 4px solid var(--theme-accent);
+        }
+
+        .sidebar-sublink.active {
+            background: rgba(255,255,255,0.1);
+            color: #ffffff;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .table-container {
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .table-header {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .table-row {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .table-row:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .input-dark {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .input-dark:focus {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--theme-accent);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        
+        .input-dark::placeholder {
+            color: rgba(255,255,255,0.4);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-accent) 100%);
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        }
+        
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .emp-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .emp-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* ========================================
+           DARK MODE ONLY - COMPREHENSIVE FIXES
+           ======================================== */
+        
+        /* Weekly Report table text - ensure readable on dark bg */
+        #weekly-table-body td {
+            color: #e2e8f0 !important;
+        }
+        #weekly-table-body td span {
+            color: inherit !important;
+        }
+        #weekly-table-body .text-slate-700,
+        #weekly-table-body .text-slate-900,
+        #weekly-table-body .font-mono {
+            color: #e2e8f0 !important;
+        }
+        
+        /* Activity Log table text */
+        #reports-table-body td {
+            color: #e2e8f0 !important;
+        }
+        
+        /* Dashboard recent table */
+        #dash-recent-table td {
+            color: #e2e8f0 !important;
+        }
+        
+        /* Employee table */
+        #admin-employees-table td {
+            color: #e2e8f0 !important;
+        }
+        
+        /* Off Day styling in weekly report */
+        #weekly-table-body tr.off-day-row {
+            background: rgba(245, 158, 11, 0.1) !important;
+        }
+        
+        /* In Progress badge */
+        .badge-in-progress {
+            color: #60a5fa !important;
+            font-weight: 600;
+        }
+        
+        /* Off Day badge */
+        .badge-off-day {
+            color: #fbbf24 !important;
+            font-weight: 600;
+        }
+        
+        /* Hours display */
+        .hours-good {
+            color: #4ade80 !important;
+        }
+        .hours-normal {
+            color: #e2e8f0 !important;
+        }
+        
+        /* Select dropdown styling for dark theme */
+        select option {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+        
+        /* Date input styling */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+        
+        /* Status badges with good contrast */
+        .status-badge-in {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .status-badge-out {
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .action-badge-in {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .action-badge-out {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .action-badge-auto {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        
+        /* Off days badge */
+        .off-day-badge {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        
+        /* Contact info styling */
+        .contact-info {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .contact-info i {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        /* Autocomplete dropdown styling */
+        .autocomplete-option {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: background 0.15s ease;
+        }
+        .autocomplete-option:hover,
+        .autocomplete-option.highlighted {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .autocomplete-option.selected {
+            background: rgba(var(--theme-primary-rgb, 79, 70, 229), 0.3);
+        }
+        .autocomplete-option img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        .autocomplete-option .emp-info {
+            flex-grow: 1;
+        }
+        .autocomplete-option .emp-name {
+            font-weight: 600;
+            color: #fff;
+        }
+        .autocomplete-option .emp-role {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .autocomplete-no-results {
+            padding: 16px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="text-white h-screen flex flex-col overflow-hidden">
+
+    <!-- App Container -->
+    <div id="app-root" class="h-full w-full relative">
+        <!-- Views injected here -->
+    </div>
+
+    <!-- Templates -->
+
+    <!-- 1. Landing / Home View -->
+    <template id="view-home">
+        <div class="h-full flex flex-col bg-slate-900 text-white fade-in relative overflow-hidden">
+            <!-- Background decoration -->
+            <div class="absolute top-0 left-0 w-full h-full overflow-hidden z-0 opacity-20 pointer-events-none">
+                <div class="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[var(--theme-accent)] blur-3xl mix-blend-screen"></div>
+                <div class="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-[var(--theme-primary)] blur-3xl mix-blend-screen"></div>
+            </div>
+
+            <header class="relative z-10 p-6 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="theme-bg-primary p-2 rounded-lg shadow-lg flex items-center justify-center">
+                        <img id="brand-logo-home" class="brand-logo w-6 h-6 rounded-md object-cover hidden" alt="Logo">
+                        <i data-lucide="shopping-bag" class="brand-logo-fallback w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 id="brand-name-home" class="text-xl font-bold tracking-tight">Rajani Superstore</h1>
+                        <p id="brand-tagline-home" class="text-xs text-slate-400 uppercase tracking-wider">Time Management</p>
+                    </div>
+                </div>
+                <div class="text-sm text-slate-400">
+                    <span id="home-clock" class="font-mono text-lg bg-white/10 px-3 py-1 rounded-md">--:--</span>
+                </div>
+            </header>
+
+            <main class="relative z-10 flex-grow flex flex-col items-center justify-center p-4">
+                <div class="text-center mb-12">
+                    <h2 class="text-4xl md:text-5xl font-bold mb-4">Welcome Back</h2>
+                    <p class="text-slate-400 text-lg">Please select your portal to continue.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+                    <!-- Employee Card -->
+                    <button onclick="app.navigate('employee-list')" class="group relative bg-slate-800 hover:bg-slate-700 p-10 rounded-2xl border border-slate-700 hover:border-[var(--theme-accent)] transition-all duration-300 text-left overflow-hidden shadow-2xl">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i data-lucide="users" class="w-32 h-32 text-[var(--theme-accent)]"></i>
+                        </div>
+                        <div class="relative z-10">
+                            <div class="w-16 h-16 bg-white/10 text-[var(--theme-accent)] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[var(--theme-accent)] group-hover:text-white transition-colors shadow-lg">
+                                <i data-lucide="user-check" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="text-3xl font-bold mb-3">Employee Portal</h3>
+                            <p class="text-slate-400 group-hover:text-slate-200 text-lg">Log your shift hours. Clock In and Clock Out access.</p>
+                        </div>
+                    </button>
+
+                    <!-- Admin Card -->
+                    <button onclick="app.navigate('admin-login')" class="group relative bg-slate-800 hover:bg-slate-700 p-10 rounded-2xl border border-slate-700 hover:border-[var(--theme-primary)] transition-all duration-300 text-left overflow-hidden shadow-2xl">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <i data-lucide="shield" class="w-32 h-32 text-[var(--theme-primary)]"></i>
+                        </div>
+                        <div class="relative z-10">
+                            <div class="w-16 h-16 bg-white/10 text-[var(--theme-primary)] rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[var(--theme-primary)] group-hover:text-white transition-colors shadow-lg">
+                                <i data-lucide="lock" class="w-8 h-8"></i>
+                            </div>
+                            <h3 class="text-3xl font-bold mb-3">Admin Console</h3>
+                            <p class="text-slate-400 group-hover:text-slate-200 text-lg">Manage staff, view reports, and configure system settings.</p>
+                        </div>
+                    </button>
+                </div>
+            </main>
+            
+            <footer class="relative z-10 py-6 text-center text-slate-500 text-sm">
+                &copy; <span id="year"></span> Rajani Superstore Ltd.
+            </footer>
+        </div>
+    </template>
+
+    <!-- 2. Employee List Selection -->
+    <template id="view-employee-list">
+        <div class="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white fade-in relative overflow-hidden">
+            <div class="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-[var(--theme-primary)] blur-3xl opacity-30"></div>
+            <div class="absolute bottom-0 left-0 w-96 h-96 rounded-full bg-[var(--theme-accent)] blur-3xl opacity-20"></div>
+            <header class="bg-white/10 backdrop-blur border-b border-white/10 z-10">
+                <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+                    <button onclick="app.navigate('home')" class="flex items-center text-white/70 hover:text-white transition">
+                        <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i> Back
+                    </button>
+                    <h1 class="text-lg font-bold text-white">Select Profile</h1>
+                    <div class="w-20"></div>
+                </div>
+            </header>
+            <main class="flex-grow overflow-auto p-6 relative z-10">
+                <div class="max-w-6xl mx-auto">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl md:text-4xl font-bold text-white mb-2">Who are you?</h2>
+                        <p class="text-white/70">Tap your profile to clock in or out.</p>
+                    </div>
+                    <div class="max-w-2xl mx-auto mb-10">
+                        <div class="relative bg-white/10 border border-white/10 rounded-2xl shadow-xl px-4 py-3">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-white/50">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </span>
+                            <input id="employee-search" type="text" placeholder="Search employee by name or role" class="w-full bg-transparent text-white placeholder:text-white/50 pl-10 pr-4 py-2 focus:outline-none">
+                        </div>
+                    </div>
+                    <div id="employee-selection-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                        <!-- Employee Cards Injected Here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </template>
+
+    <!-- 3. Employee Clock Action Page -->
+    <template id="view-employee-action">
+        <div class="h-full flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 fade-in relative overflow-hidden">
+            <!-- Background Effects -->
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-[var(--theme-primary)] blur-3xl opacity-20"></div>
+                <div class="absolute bottom-1/4 -right-20 w-96 h-96 rounded-full bg-[var(--theme-accent)] blur-3xl opacity-15"></div>
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full border border-white/5"></div>
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full border border-white/5"></div>
+            </div>
+
+            <div class="flex-grow flex items-center justify-center p-4 relative z-10">
+                <div class="w-full max-w-md">
+                    <!-- Back Button -->
+                    <button onclick="app.navigate('employee-list')" class="mb-6 flex items-center text-white/60 hover:text-white transition group">
+                        <div class="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/10 flex items-center justify-center mr-3 group-hover:bg-white/20 transition">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </div>
+                        <span class="font-medium">Back to Profiles</span>
+                    </button>
+
+                    <!-- Main Card -->
+                    <div class="bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden">
+                        <!-- Header with Photo -->
+                        <div class="relative pt-8 pb-6 px-8 flex flex-col items-center text-center">
+                            <!-- Decorative Ring -->
+                            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full border-2 border-dashed border-white/10 animate-[spin_20s_linear_infinite]"></div>
+                            
+                            <div class="relative mb-4">
+                                <!-- Photo Ring -->
+                                <div class="w-36 h-36 rounded-full p-1 bg-gradient-to-tr from-[var(--theme-primary)] via-[var(--theme-accent)] to-[var(--theme-primary)] shadow-lg shadow-[var(--theme-primary)]/30">
+                                    <div class="w-full h-full rounded-full p-1 bg-slate-900">
+                                        <img id="action-emp-photo" src="" class="w-full h-full rounded-full object-cover bg-slate-700" alt="Employee">
+                                    </div>
+                                </div>
+                                <!-- Status Indicator -->
+                                <div id="action-emp-status-indicator" class="absolute bottom-2 right-2 w-10 h-10 rounded-full border-4 border-slate-900 flex items-center justify-center shadow-lg">
+                                </div>
+                            </div>
+                            
+                            <h2 id="action-emp-name" class="text-3xl font-bold text-white mb-1">Employee Name</h2>
+                            <p id="action-emp-role" class="text-white/60 text-lg">Role</p>
+                        </div>
+
+                        <!-- Status Panel -->
+                        <div class="px-8 pb-6">
+                            <div class="bg-white/5 backdrop-blur rounded-2xl p-5 border border-white/10">
+                                <div class="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                            <i data-lucide="activity" class="w-5 h-5 text-white/70"></i>
+                                        </div>
+                                        <span class="text-white/70 font-medium">Current Status</span>
+                                    </div>
+                                    <span id="action-status-text" class="text-sm font-bold px-3 py-1.5 rounded-full">Out</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                            <i data-lucide="history" class="w-5 h-5 text-white/70"></i>
+                                        </div>
+                                        <span class="text-white/70 font-medium">Last Activity</span>
+                                    </div>
+                                    <span id="action-last-activity" class="text-sm font-mono text-white bg-white/10 px-3 py-1.5 rounded-full">--:--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <div class="px-8 pb-8">
+                            <button id="btn-clock-action" class="w-full py-5 rounded-2xl text-white font-bold text-xl shadow-2xl hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Clock -->
+                    <div class="mt-6 text-center">
+                        <div class="inline-flex items-center gap-3 bg-white/10 backdrop-blur border border-white/10 rounded-full px-6 py-3">
+                            <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                            <span class="text-white/60 text-sm">Current Time</span>
+                            <span id="live-action-clock" class="text-white font-mono text-lg font-bold">--:--:--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- 4. Admin Login -->
+    <template id="view-admin-login">
+        <div class="h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 fade-in relative overflow-hidden">
+            <!-- Background Effects -->
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-[var(--theme-primary)] blur-3xl opacity-20"></div>
+                <div class="absolute bottom-1/4 -right-20 w-96 h-96 rounded-full bg-[var(--theme-accent)] blur-3xl opacity-15"></div>
+            </div>
+            
+            <div class="relative z-10 w-full max-w-sm">
+                <!-- Back Button -->
+                <button onclick="app.navigate('home')" class="mb-6 flex items-center text-white/60 hover:text-white transition group">
+                    <div class="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/10 flex items-center justify-center mr-3 group-hover:bg-white/20 transition">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </div>
+                    <span class="font-medium">Back to Home</span>
+                </button>
+
+                <div class="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+                    <div class="relative pt-10 pb-8 px-8 text-center">
+                        <!-- Decorative Ring -->
+                        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full border-2 border-dashed border-white/10 animate-[spin_20s_linear_infinite]"></div>
+                        
+                        <div class="relative inline-flex">
+                            <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-[var(--theme-primary)] to-[var(--theme-accent)] p-1 shadow-lg shadow-[var(--theme-primary)]/30">
+                                <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-white">
+                                    <i data-lucide="shield-check" class="w-10 h-10"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h2 class="text-2xl font-bold text-white mt-6">Admin Access</h2>
+                        <p class="text-white/50 text-sm mt-1">Authorized personnel only</p>
+                    </div>
+                    
+                    <div class="px-8 pb-8">
+                        <form onsubmit="app.handleAdminLogin(event)">
+                            <div class="mb-6">
+                                <label class="block text-white/70 text-sm font-medium mb-2" for="admin-password">Password</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-white/40">
+                                        <i data-lucide="lock" class="w-5 h-5"></i>
+                                    </span>
+                                    <input type="password" id="admin-password" class="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="Enter PIN">
+                                </div>
+                                <p id="login-error" class="text-red-400 text-xs mt-2 hidden flex items-center">
+                                    <i data-lucide="alert-circle" class="w-3 h-3 mr-1"></i> Incorrect password. Default is 1234.
+                                </p>
+                            </div>
+                            <button type="submit" class="w-full bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] hover:opacity-90 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-[var(--theme-primary)]/30 transition-all hover:shadow-xl hover:shadow-[var(--theme-primary)]/40 hover:-translate-y-1">
+                                Login to Dashboard
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Footer Hint -->
+                <p class="text-center text-white/30 text-sm mt-6">
+                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                    Default PIN: 1234
+                </p>
+            </div>
+        </div>
+    </template>
+
+    <!-- 5. Admin Layout & Views -->
+    <template id="view-admin-layout">
+        <div class="h-full flex fade-in bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+            <!-- Sidebar -->
+            <aside class="w-72 bg-slate-900/80 backdrop-blur-xl text-slate-300 flex flex-col flex-shrink-0 transition-all duration-300 hidden md:flex border-r border-white/5 z-20">
+                <div class="p-6 border-b border-white/5 flex items-center gap-3">
+                    <div class="bg-gradient-to-tr from-[var(--theme-primary)] to-[var(--theme-accent)] p-2.5 rounded-xl text-white shadow-lg shadow-[var(--theme-primary)]/30 flex items-center justify-center">
+                        <img id="brand-logo-admin" class="brand-logo w-6 h-6 rounded-md object-cover hidden" alt="Logo">
+                        <i data-lucide="shopping-bag" class="brand-logo-fallback w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <span id="brand-name-admin" class="font-bold text-white tracking-wide text-lg">RAJANI LTD</span>
+                        <p id="brand-tagline-admin" class="text-xs text-white/40">Admin Console</p>
+                    </div>
+                </div>
+                
+                <nav class="flex-grow py-6 px-4 space-y-2 custom-scrollbar overflow-auto">
+                    <p class="text-xs font-semibold text-white/30 uppercase tracking-wider px-3 mb-3">Main Menu</p>
+                    
+                    <button onclick="app.loadAdminView('dashboard')" id="nav-dashboard" class="sidebar-link w-full flex items-center px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+                        <div class="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3 transition">
+                            <i data-lucide="layout-dashboard" class="w-5 h-5 group-hover:text-[var(--theme-accent)]"></i>
+                        </div>
+                        Dashboard
+                    </button>
+                    
+                    <button onclick="app.loadAdminView('employees')" id="nav-employees" class="sidebar-link w-full flex items-center px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+                        <div class="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3 transition">
+                            <i data-lucide="users" class="w-5 h-5 group-hover:text-[var(--theme-accent)]"></i>
+                        </div>
+                        Employees
+                    </button>
+                    
+                    <!-- Reports (Parent) -->
+                    <button onclick="app.toggleReportsMenu()" id="nav-reports" class="sidebar-link w-full flex items-center justify-between px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+                        <span class="flex items-center">
+                            <div class="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3 transition">
+                                <i data-lucide="file-bar-chart" class="w-5 h-5 group-hover:text-[var(--theme-accent)]"></i>
+                            </div>
+                            Reports
+                        </span>
+                        <i id="reports-chevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform text-white/40"></i>
+                    </button>
+                    
+                    <div id="reports-submenu" class="ml-6 mt-1 mb-2 space-y-1 hidden border-l border-white/10 pl-4">
+                        <button onclick="app.loadAdminView('reports-activity')" id="nav-reports-activity" class="sidebar-sublink w-full text-left flex items-center px-4 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white">
+                            <i data-lucide="list" class="w-4 h-4 mr-3"></i>
+                            Activity Log
+                        </button>
+                        <button onclick="app.loadAdminView('reports-weekly')" id="nav-reports-weekly" class="sidebar-sublink w-full text-left flex items-center px-4 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white">
+                            <i data-lucide="calendar" class="w-4 h-4 mr-3"></i>
+                            Weekly Report
+                        </button>
+                    </div>
+
+                    <p class="text-xs font-semibold text-white/30 uppercase tracking-wider px-3 mb-3 mt-6">System</p>
+                    
+                    <!-- Settings -->
+                    <button onclick="app.loadAdminView('settings')" id="nav-settings" class="sidebar-link w-full flex items-center px-4 py-3 rounded-xl hover:bg-white/5 transition-all group">
+                        <div class="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3 transition">
+                            <i data-lucide="settings" class="w-5 h-5 group-hover:text-[var(--theme-accent)]"></i>
+                        </div>
+                        Settings
+                    </button>
+                </nav>
+
+                <div class="p-4 border-t border-white/5">
+                    <button onclick="app.navigate('home')" class="w-full flex items-center px-4 py-3 text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all group">
+                        <div class="w-9 h-9 rounded-lg bg-white/5 group-hover:bg-red-500/20 flex items-center justify-center mr-3 transition">
+                            <i data-lucide="log-out" class="w-5 h-5 group-hover:text-red-400"></i>
+                        </div>
+                        Logout
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <div class="flex-grow flex flex-col h-full overflow-hidden relative">
+                <!-- Background Effects -->
+                <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--theme-primary)] blur-3xl opacity-10"></div>
+                    <div class="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-[var(--theme-accent)] blur-3xl opacity-10"></div>
+                </div>
+                
+                <!-- Mobile Header -->
+                <header class="md:hidden bg-slate-900/90 backdrop-blur-xl text-white p-4 flex justify-between items-center border-b border-white/5 z-20">
+                    <div class="flex items-center gap-2">
+                        <div class="bg-gradient-to-tr from-[var(--theme-primary)] to-[var(--theme-accent)] p-1.5 rounded-lg flex items-center justify-center">
+                            <img id="brand-logo-mobile" class="brand-logo w-5 h-5 rounded-md object-cover hidden" alt="Logo">
+                            <i data-lucide="shopping-bag" class="brand-logo-fallback w-5 h-5"></i>
+                        </div>
+                        <span id="brand-name-mobile" class="font-bold">Rajani Admin</span>
+                    </div>
+                    <button onclick="document.querySelector('aside').classList.toggle('hidden'); document.querySelector('aside').classList.toggle('absolute'); document.querySelector('aside').classList.toggle('z-50'); document.querySelector('aside').classList.toggle('h-full');" class="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                </header>
+
+                <!-- Dynamic Content Area -->
+                <main id="admin-content-area" class="flex-grow overflow-auto p-6 relative z-10 custom-scrollbar">
+                </main>
+            </div>
+        </div>
+    </template>
+
+    <!-- Admin Sub-View: Dashboard -->
+    <template id="subview-dashboard">
+        <div class="fade-in max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-1">Dashboard</h2>
+                    <p class="text-white/50">Welcome back! Here's what's happening today.</p>
+                </div>
+                <div class="hidden md:flex items-center gap-3 bg-white/5 backdrop-blur border border-white/10 rounded-xl px-4 py-2">
+                    <i data-lucide="calendar" class="w-5 h-5 text-white/50"></i>
+                    <span class="text-white/70 font-medium" id="dash-date"></span>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <!-- Total Employees -->
+                <div class="stat-card p-6 rounded-2xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                    <div class="relative">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-white/50">Total Staff</p>
+                                <h3 id="dash-total-emp" class="text-4xl font-bold text-white mt-2">0</h3>
+                            </div>
+                            <div class="p-3 bg-blue-500/20 text-blue-400 rounded-xl">
+                                <i data-lucide="users" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center gap-2 text-blue-400 text-sm">
+                            <i data-lucide="trending-up" class="w-4 h-4"></i>
+                            <span>Active employees</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Currently In -->
+                <div class="stat-card p-6 rounded-2xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                    <div class="relative">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-white/50">Currently Clocked In</p>
+                                <h3 id="dash-clocked-in" class="text-4xl font-bold text-green-400 mt-2">0</h3>
+                            </div>
+                            <div class="p-3 bg-green-500/20 text-green-400 rounded-xl">
+                                <i data-lucide="clock" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center gap-2 text-green-400 text-sm">
+                            <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                            <span>Working now</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Count -->
+                <div class="stat-card p-6 rounded-2xl relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                    <div class="relative">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium text-white/50">Today's Activities</p>
+                                <h3 id="dash-activity-count" class="text-4xl font-bold text-purple-400 mt-2">0</h3>
+                            </div>
+                            <div class="p-3 bg-purple-500/20 text-purple-400 rounded-xl">
+                                <i data-lucide="activity" class="w-6 h-6"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center gap-2 text-purple-400 text-sm">
+                            <i data-lucide="zap" class="w-4 h-4"></i>
+                            <span>Clock events today</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container rounded-2xl overflow-hidden">
+                <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                            <i data-lucide="list" class="w-5 h-5 text-white/70"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Recent Activity</h3>
+                            <p class="text-xs text-white/40">Latest clock events</p>
+                        </div>
+                    </div>
+                    <button onclick="app.loadAdminView('reports-activity')" class="text-sm text-[var(--theme-accent)] hover:text-white transition flex items-center gap-2">
+                        View All <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="table-header text-white/40 font-medium text-xs uppercase tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4">Employee</th>
+                                <th class="px-6 py-4">Action</th>
+                                <th class="px-6 py-4">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-recent-table" class="text-white/80">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Admin Sub-View: Employees (CRUD) -->
+    <template id="subview-employees">
+        <div class="fade-in max-w-7xl mx-auto h-full flex flex-col">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-1">Employees</h2>
+                    <p class="text-white/50">Manage your team members and their details.</p>
+                </div>
+                <div class="flex gap-3">
+                    <!-- Search Box -->
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-white/40">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </span>
+                        <input id="admin-emp-search" type="text" placeholder="Search employees..." class="w-64 pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition">
+                    </div>
+                    <button onclick="app.openEmployeeModal()" class="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] text-white px-5 py-3 rounded-xl flex items-center shadow-lg shadow-[var(--theme-primary)]/30 transition hover:shadow-xl hover:-translate-y-1">
+                        <i data-lucide="plus" class="w-5 h-5 mr-2"></i> Add Employee
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container rounded-2xl flex-grow overflow-hidden flex flex-col">
+                <div class="overflow-auto custom-scrollbar flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="table-header sticky top-0 z-10">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Employee</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Contact</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Off Days</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Status</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-employees-table" class="text-white/80">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Modal Overlay -->
+        <div id="employee-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center fade-in py-8">
+            <div class="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all border border-white/10 flex flex-col max-h-[90vh]">
+                <div class="px-5 py-3 border-b border-white/10 flex justify-between items-center bg-slate-900/50 flex-shrink-0">
+                    <h3 id="modal-title" class="font-bold text-white text-base">Add New Employee</h3>
+                    <button onclick="app.closeEmployeeModal()" class="text-white/40 hover:text-white transition p-1">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <form onsubmit="app.saveEmployee(event)" class="p-4 overflow-y-auto custom-scrollbar flex-grow">
+                    <input type="hidden" id="emp-id">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-white/70 mb-1">Full Name</label>
+                            <input type="text" id="emp-name" required class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition text-sm">
+                        </div>
+                        
+                        <!-- Gender and Job Role in one row -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-white/70 mb-1">Gender</label>
+                                <select id="emp-gender" class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition text-sm">
+                                    <option value="">Select Gender</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-white/70 mb-1">Job Role</label>
+                                <input type="text" id="emp-role" required class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition text-sm">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-white/70 mb-1">Mobile</label>
+                                <input type="tel" id="emp-mobile" class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition text-sm" placeholder="07XXX XXXXXX">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-white/70 mb-1">Email</label>
+                                <input type="email" id="emp-email" class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition text-sm" placeholder="email@example.com">
+                            </div>
+                        </div>
+
+                        <!-- Off Days Selection -->
+                        <div>
+                            <label class="block text-xs font-medium text-white/70 mb-2">Off Days</label>
+                            <div class="flex flex-wrap gap-1.5" id="off-days-container">
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="0" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Sun</span>
+                                </label>
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="1" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Mon</span>
+                                </label>
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="2" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Tue</span>
+                                </label>
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="3" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Wed</span>
+                                </label>
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="4" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Thu</span>
+                                </label>
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="5" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Fri</span>
+                                </label>
+                                <label class="off-day-checkbox flex items-center gap-1.5 px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg cursor-pointer hover:bg-white/10 transition has-[:checked]:bg-[var(--theme-primary)]/30 has-[:checked]:border-[var(--theme-primary)]">
+                                    <input type="checkbox" name="off-days" value="6" class="w-3 h-3 text-[var(--theme-primary)] bg-white/10 border-white/20 rounded focus:ring-[var(--theme-accent)]">
+                                    <span class="text-xs font-medium text-white">Sat</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Photo Upload Section -->
+                        <div>
+                            <label class="block text-xs font-medium text-white/70 mb-2">Profile Photo <span class="text-white/30">(Optional)</span></label>
+                            <div class="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                                <div class="relative group shrink-0">
+                                    <img id="modal-preview" src="" class="w-16 h-16 rounded-full bg-slate-700 border-2 border-white/20 object-cover shadow-lg">
+                                    <div onclick="document.getElementById('emp-photo-file').click()" class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                                        <i data-lucide="camera" class="w-6 h-6 text-white"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow">
+                                    <input type="file" id="emp-photo-file" accept="image/*" class="hidden" onchange="app.handleFileSelect(event)">
+                                    <div class="flex gap-2 mb-1">
+                                        <button type="button" onclick="document.getElementById('emp-photo-file').click()" class="text-xs bg-[var(--theme-primary)]/20 text-[var(--theme-accent)] border border-[var(--theme-primary)]/30 hover:bg-[var(--theme-primary)]/30 px-3 py-1.5 rounded-md transition font-medium">
+                                            Upload
+                                        </button>
+                                        <button type="button" onclick="app.resetPhotoToDefault()" class="text-xs text-white/40 hover:text-red-400 px-2 py-1.5 transition">
+                                            Random
+                                        </button>
+                                    </div>
+                                    <p class="text-[10px] text-white/30">A gender-based avatar will be used automatically</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-white/10 flex gap-2 flex-shrink-0">
+                        <button type="button" onclick="app.closeEmployeeModal()" class="flex-1 py-2 border border-white/10 rounded-lg text-white/60 hover:bg-white/5 transition font-medium text-sm">Cancel</button>
+                        <button type="submit" class="flex-1 py-2 bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] text-white rounded-lg shadow-lg transition font-bold text-sm hover:shadow-xl hover:-translate-y-0.5">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+
+    <!-- Admin Sub-View: Reports > Activity Log -->
+    <template id="subview-reports-activity">
+        <div class="fade-in max-w-7xl mx-auto h-full flex flex-col">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-1">Activity Log</h2>
+                    <p class="text-white/50">All clock-in/clock-out events in chronological order.</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="app.exportCSV('activity')" class="bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center transition">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i> Export CSV
+                    </button>
+                    <button onclick="app.clearHistory()" class="bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 px-4 py-2.5 rounded-xl text-sm font-medium flex items-center transition">
+                        <i data-lucide="trash-2" class="w-4 h-4 mr-2"></i> Clear History
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container rounded-2xl flex-grow overflow-hidden flex flex-col">
+                <div class="overflow-auto custom-scrollbar flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="table-header sticky top-0 z-10">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Date</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Time</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Employee</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reports-table-body" class="text-white/80">
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-3 border-t border-white/5 bg-white/5 text-xs text-white/40 text-center" id="reports-footer">
+                    Showing all records
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Admin Sub-View: Reports > Weekly Report -->
+    <template id="subview-reports-weekly">
+        <div class="fade-in max-w-7xl mx-auto h-full flex flex-col">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+                <div>
+                    <h2 class="text-3xl font-bold text-white mb-1">Weekly Report</h2>
+                    <p class="text-white/50">Daily hours summary for a selected employee (Sunday - Saturday).</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="app.exportCSV('weekly')" class="bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white px-4 py-2.5 rounded-xl text-sm font-medium flex items-center transition">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container rounded-2xl overflow-hidden flex flex-col flex-grow">
+                <div class="p-5 border-b border-white/5 bg-white/5">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                        <div class="md:col-span-5">
+                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Employee</label>
+                            <div class="relative" id="weekly-emp-dropdown-container">
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-white/40">
+                                        <i data-lucide="search" class="w-4 h-4"></i>
+                                    </span>
+                                    <input type="text" id="weekly-emp-search" placeholder="Type to search employee..." autocomplete="off" class="w-full pl-11 pr-10 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition">
+                                    <span class="absolute inset-y-0 right-0 pr-4 flex items-center text-white/40 cursor-pointer" onclick="app.toggleWeeklyEmpDropdown()">
+                                        <i data-lucide="chevron-down" class="w-4 h-4" id="weekly-emp-chevron"></i>
+                                    </span>
+                                </div>
+                                <input type="hidden" id="weekly-emp-select" value="">
+                                <div id="weekly-emp-dropdown" class="absolute z-50 w-full mt-2 bg-slate-800 border border-white/10 rounded-xl shadow-2xl max-h-60 overflow-auto custom-scrollbar hidden">
+                                    <!-- Options injected here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-4">
+                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Week (pick any date)</label>
+                            <input id="weekly-week-input" type="date" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" />
+                        </div>
+                        <div class="md:col-span-3 flex gap-2">
+                            <button id="weekly-prev" class="flex-1 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white px-4 py-3 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-1">
+                                <i data-lucide="chevron-left" class="w-4 h-4"></i> Prev
+                            </button>
+                            <button id="weekly-next" class="flex-1 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white px-4 py-3 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-1">
+                                Next <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center gap-2 text-white/60">
+                        <i data-lucide="calendar-days" class="w-4 h-4"></i>
+                        <span class="font-medium">Week:</span>
+                        <span id="weekly-week-range" class="text-white font-semibold">—</span>
+                    </div>
+                </div>
+
+                <div class="overflow-auto custom-scrollbar flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="table-header sticky top-0 z-10">
+                            <tr>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Day</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Clock In</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider">Clock Out</th>
+                                <th class="px-6 py-4 text-xs font-semibold text-white/40 uppercase tracking-wider text-right">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-table-body" class="text-white/80">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="px-6 py-4 border-t border-white/5 bg-white/5 flex items-center justify-between">
+                    <div class="text-xs text-white/40 flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4"></i>
+                        Hours calculated from <span class="font-semibold text-white/60">Clock In</span> → <span class="font-semibold text-white/60">Clock Out</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-white/50 text-sm">Total</span>
+                        <div class="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] text-white font-bold px-4 py-2 rounded-xl shadow-lg">
+                            <span id="weekly-total-hours" class="font-mono text-lg">0.00</span> hrs
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Admin Sub-View: Settings -->
+    <template id="subview-settings">
+        <div class="fade-in max-w-4xl mx-auto">
+            <div class="mb-8">
+                <h2 class="text-3xl font-bold text-white mb-1">Settings</h2>
+                <p class="text-white/50">Customize the appearance and behavior of the application.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Color Theme -->
+                <div class="stat-card p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
+                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
+                            <i data-lucide="palette" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                        </div>
+                        Accent Color
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Theme Option 1: Blue -->
+                        <button onclick="app.setTheme('blue')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-indigo-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
+                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-500 shadow-lg shadow-indigo-500/30"></div>
+                            <span class="font-medium text-white/80">Corporate Blue</span>
+                            <div id="check-blue" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </div>
+                        </button>
+                        
+                        <!-- Theme Option 2: Green -->
+                        <button onclick="app.setTheme('green')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-emerald-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
+                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 shadow-lg shadow-emerald-500/30"></div>
+                            <span class="font-medium text-white/80">Nature Green</span>
+                            <div id="check-green" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </div>
+                        </button>
+
+                        <!-- Theme Option 3: Purple -->
+                        <button onclick="app.setTheme('purple')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-purple-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
+                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 shadow-lg shadow-purple-500/30"></div>
+                            <span class="font-medium text-white/80">Royal Purple</span>
+                            <div id="check-purple" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </div>
+                        </button>
+                        
+                        <!-- Theme Option 4: Orange -->
+                        <button onclick="app.setTheme('orange')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-orange-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
+                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-orange-600 to-red-500 shadow-lg shadow-orange-500/30"></div>
+                            <span class="font-medium text-white/80">Sunset Orange</span>
+                            <div id="check-orange" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stat-card p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
+                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
+                            <i data-lucide="badge-check" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                        </div>
+                        Company Branding
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Company Name</label>
+                                <input id="brand-name-input" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="Company Name">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Tagline</label>
+                                <input id="brand-tagline-input" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="Tagline">
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider">Logo</label>
+                            <div class="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl p-4">
+                                <div class="w-16 h-16 rounded-xl bg-slate-900/60 border border-white/10 flex items-center justify-center overflow-hidden">
+                                    <img id="brand-logo-preview" class="brand-logo w-full h-full object-cover hidden" alt="Logo">
+                                    <i data-lucide="image" class="brand-logo-fallback w-6 h-6 text-white/40"></i>
+                                </div>
+                                <div class="flex flex-col gap-2">
+                                    <input type="file" id="brand-logo-input" accept="image/*" class="hidden">
+                                    <button type="button" id="brand-logo-upload" class="text-xs bg-[var(--theme-primary)]/20 text-[var(--theme-accent)] border border-[var(--theme-primary)]/30 hover:bg-[var(--theme-primary)]/30 px-3 py-2 rounded-md transition font-medium">Upload Logo</button>
+                                    <button type="button" id="brand-logo-reset" class="text-xs text-white/40 hover:text-red-400 transition">Remove Logo</button>
+                                </div>
+                            </div>
+                            <button type="button" id="brand-save" class="w-full py-3 rounded-xl font-semibold text-white btn-primary">Save Branding</button>
+                            <p class="text-[11px] text-white/40">Updates the logo and company name across the system.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Store Hours Info -->
+                <div class="stat-card p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
+                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
+                            <i data-lucide="clock" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                        </div>
+                        Auto Clock-Out Rules
+                    </h3>
+                    <div class="bg-white/5 rounded-xl p-5 border border-white/10">
+                        <p class="text-sm text-white/60 mb-4">Employees who forget to clock out will be automatically clocked out at:</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white/5 rounded-lg p-4 border border-white/10 text-center">
+                                <div class="text-white/40 text-sm mb-2">Monday - Saturday</div>
+                                <div class="text-2xl font-mono font-bold text-blue-400">18:00</div>
+                            </div>
+                            <div class="bg-white/5 rounded-lg p-4 border border-white/10 text-center">
+                                <div class="text-white/40 text-sm mb-2">Sunday</div>
+                                <div class="text-2xl font-mono font-bold text-amber-400">16:00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Actions -->
+                <div class="stat-card p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
+                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
+                            <i data-lucide="database" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                        </div>
+                        Data Management
+                    </h3>
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <button onclick="app.clearHistory()" class="flex-1 py-4 px-6 border border-red-500/20 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition flex items-center justify-center gap-3 font-medium">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            Clear All History
+                        </button>
+                        <button onclick="if(confirm('Reset all data to factory defaults? This will delete all employees and history.')){localStorage.clear(); location.reload();}" class="flex-1 py-4 px-6 border border-white/10 bg-white/5 text-white/70 rounded-xl hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-3 font-medium">
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                            Factory Reset
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Firebase Configuration -->
+                <div class="stat-card p-6 rounded-2xl">
+                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
+                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
+                            <i data-lucide="cloud" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                        </div>
+                        Cloud Storage (Firebase)
+                    </h3>
+                    <p class="text-sm text-white/60 mb-4">Connect to a Firebase Realtime Database to sync data across devices. Leave blank to use this device's local storage.</p>
+                    
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">API Key</label>
+                            <input id="fb-apiKey" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="AIzaSy...">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Auth Domain</label>
+                                <input id="fb-authDomain" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="project-id.firebaseapp.com">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Project ID</label>
+                                <input id="fb-projectId" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="project-id">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Database URL (Realtime DB)</label>
+                            <input id="fb-databaseURL" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="https://project-id-default-rtdb.firebaseio.com">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Storage Bucket</label>
+                                <input id="fb-storageBucket" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="project-id.appspot.com">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">App ID</label>
+                                <input id="fb-appId" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="1:123456789:web:...">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 pt-2">
+                            <button onclick="app.saveFirebaseConfig()" class="flex-1 py-3 px-6 bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] text-white rounded-xl shadow-lg transition font-bold hover:shadow-xl hover:-translate-y-1">
+                                Save & Connect
+                            </button>
+                            <button onclick="app.clearFirebaseConfig()" class="px-6 py-3 border border-red-500/20 text-red-400 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition font-medium">
+                                Disconnect
+                            </button>
+                        </div>
+                        <div id="firebase-status" class="text-xs text-center pt-2 font-medium text-white/40">
+                            Status: Disconnected (Using Local Storage)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        /**
+         * =====================================================
+         * RAJANI SUPERSTORE LTD - TIME SHEET MANAGEMENT SYSTEM
+         * =====================================================
+         * 
+         * A client-side web application for employee time tracking.
+         * 
+         * Features:
+         * - Employee Portal: Clock In/Out functionality
+         * - Admin Console: Dashboard, Employee CRUD, Reports
+         * - Auto Clock Out: Employees are automatically clocked out at 18:00 if they forget
+         * - Data Persistence: All data stored in browser's localStorage
+         * - Date Format: dd/mm/yyyy throughout the system
+         * - Week starts on Sunday
+         * 
+         * Default Admin Password: 1234
+         */
+
+        const app = {
+            // Application state
+            data: {
+                employees: [],
+                history: [],
+                currentView: 'home',
+                adminView: 'dashboard',
+                selectedEmployeeId: null,
+                tempPhoto: null,
+                weeklySelection: { employeeId: null, weekStartISO: null },
+                currentTheme: 'blue',
+                firebaseConfig: null,
+                db: null,
+                isFirebaseConnected: false
+            },
+            
+            // ==========================================
+            // INITIALIZATION
+            // ==========================================
+            
+            init: function() {
+                this.loadFirebaseConfig();
+                this.loadTheme();
+                // If Firebase is configured, loadData will be called after connection
+                // Otherwise load local data immediately
+                if (!this.data.firebaseConfig) {
+                    this.loadData();
+                    this.checkAutoLogout();
+                } else {
+                    this.initFirebase();
+                }
+                
+                this.updateYear();
+                this.navigate('home');
+                this.startClock();
+                lucide.createIcons();
+                this.applyBranding();
+            },
+
+            // ==========================================
+            // FIREBASE INTEGRATION
+            // ==========================================
+
+            loadFirebaseConfig: function() {
+                const config = localStorage.getItem('rajani_firebase_config');
+                if (config) {
+                    try {
+                        this.data.firebaseConfig = JSON.parse(config);
+                    } catch (e) {
+                        console.error('Invalid Firebase Config');
+                    }
+                }
+            },
+
+            saveFirebaseConfig: function() {
+                const apiKey = document.getElementById('fb-apiKey').value.trim();
+                const authDomain = document.getElementById('fb-authDomain').value.trim();
+                const projectId = document.getElementById('fb-projectId').value.trim();
+                const databaseURL = document.getElementById('fb-databaseURL').value.trim();
+                const storageBucket = document.getElementById('fb-storageBucket').value.trim();
+                const appId = document.getElementById('fb-appId').value.trim();
+
+                if (!apiKey || !databaseURL) {
+                    alert('API Key and Database URL are required!');
+                    return;
+                }
+
+                const config = { apiKey, authDomain, projectId, databaseURL, storageBucket, appId };
+                this.data.firebaseConfig = config;
+                localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
+                
+                // Reload to init firebase
+                this.initFirebase();
+            },
+
+            clearFirebaseConfig: function() {
+                if (confirm('Disconnect from Firebase and revert to local storage?')) {
+                    localStorage.removeItem('rajani_firebase_config');
+                    this.data.firebaseConfig = null;
+                    this.data.isFirebaseConnected = false;
+                    this.data.db = null;
+                    
+                    // Reload local data
+                    this.loadData();
+                    this.updateFirebaseStatus('Disconnected (Using Local Storage)');
+                    alert('Disconnected. Now using local storage.');
+                    
+                    // Clear inputs if on settings page
+                    if(document.getElementById('fb-apiKey')) {
+                        ['apiKey', 'authDomain', 'projectId', 'databaseURL', 'storageBucket', 'appId'].forEach(id => {
+                            document.getElementById('fb-' + id).value = '';
+                        });
+                    }
+                }
+            },
+
+            initFirebase: function() {
+                if (!this.data.firebaseConfig || !window.firebase) return;
+
+                try {
+                    // Check if already initialized to avoid errors
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(this.data.firebaseConfig);
+                    }
+                    
+                    this.data.db = firebase.database();
+                    this.data.isFirebaseConnected = true;
+                    this.updateFirebaseStatus('Connected to Cloud');
+                    
+                    // Setup Listeners for Realtime Sync
+                    const dbRef = this.data.db.ref('rajani_data');
+                    
+                    dbRef.on('value', (snapshot) => {
+                        const val = snapshot.val();
+                        if (val) {
+                            if (val.employees) this.data.employees = val.employees;
+                            if (val.history) this.data.history = val.history;
+                            
+                            // Check auto logout logic on new data
+                            this.checkAutoLogout();
+                            
+                            // Re-render current view if needed
+                            if (this.data.currentView === 'admin-layout') {
+                                this.loadAdminView(this.data.adminView);
+                            } else if (this.data.currentView === 'employee-list') {
+                                this.renderEmployeeSelection();
+                            } else if (this.data.currentView === 'employee-action') {
+                                this.renderEmployeeAction();
+                            }
+                        } else {
+                            // If DB is empty, maybe push local data?
+                            // For now, let's keep local if remote is empty or just start fresh.
+                            // If we have local data and remote is empty, let's upload local.
+                            if (this.data.employees.length > 0) {
+                                this.saveData(); // Will push to Firebase
+                            }
+                        }
+                    }, (error) => {
+                        console.error("Firebase read failed: " + error.code);
+                        this.updateFirebaseStatus('Connection Error: ' + error.code);
+                        this.data.isFirebaseConnected = false;
+                        // Fallback to local
+                        this.loadData();
+                    });
+
+                } catch (e) {
+                    console.error("Firebase Init Error", e);
+                    this.updateFirebaseStatus('Init Error: ' + e.message);
+                    this.data.isFirebaseConnected = false;
+                }
+            },
+
+            updateFirebaseStatus: function(msg) {
+                const el = document.getElementById('firebase-status');
+                if (el) {
+                    el.innerText = 'Status: ' + msg;
+                    if (msg.includes('Connected')) {
+                        el.className = "text-xs text-center pt-2 font-medium text-green-400";
+                    } else if (msg.includes('Error')) {
+                        el.className = "text-xs text-center pt-2 font-medium text-red-400";
+                    } else {
+                        el.className = "text-xs text-center pt-2 font-medium text-white/40";
+                    }
+                }
+            },
+
+            loadTheme: function() {
+                const savedTheme = localStorage.getItem('rajani_theme') || 'blue';
+                this.setTheme(savedTheme);
+            },
+
+            setTheme: function(themeName) {
+                this.data.currentTheme = themeName;
+                localStorage.setItem('rajani_theme', themeName);
+
+                const root = document.documentElement;
+                
+                // Define themes
+                const themes = {
+                    'blue': {
+                        primary: '#4f46e5', // Indigo 600
+                        hover: '#4338ca',
+                        secondary: '#0f172a', // Slate 900
+                        accent: '#3b82f6'
+                    },
+                    'green': {
+                        primary: '#059669', // Emerald 600
+                        hover: '#047857',
+                        secondary: '#064e3b', // Emerald 900
+                        accent: '#10b981'
+                    },
+                    'purple': {
+                        primary: '#7c3aed', // Violet 600
+                        hover: '#6d28d9',
+                        secondary: '#4c1d95', // Violet 900
+                        accent: '#8b5cf6'
+                    },
+                    'orange': {
+                        primary: '#ea580c', // Orange 600
+                        hover: '#c2410c',
+                        secondary: '#7c2d12', // Orange 900
+                        accent: '#f97316'
+                    }
+                };
+
+                const t = themes[themeName] || themes['blue'];
+                
+                // Set CSS variables
+                root.style.setProperty('--theme-primary', t.primary);
+                root.style.setProperty('--theme-primary-hover', t.hover);
+                root.style.setProperty('--theme-secondary', t.secondary);
+                root.style.setProperty('--theme-accent', t.accent);
+
+                // If on settings page, update checks
+                if (this.data.adminView === 'settings') {
+                    ['blue', 'green', 'purple', 'orange'].forEach(c => {
+                        const el = document.getElementById(`check-${c}`);
+                        if (el) el.classList.toggle('hidden', c !== themeName);
+                        if (el) el.style.display = c === themeName ? 'flex' : 'none';
+                    });
+                }
+            },
+
+            /**
+             * Auto Clock Out Logic
+             * If an employee is still "clocked in" from a previous day,
+             * automatically clock them out at:
+             * - 16:00 (4:00 PM) on Sundays
+             * - 18:00 (6:00 PM) on Monday to Saturday
+             * 
+             * This runs when the app loads and checks all employees.
+             */
+            checkAutoLogout: function() {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                let dataChanged = false;
+
+                this.data.employees.forEach(emp => {
+                    if (emp.status === 'in' && emp.lastAction) {
+                        const lastActionDate = new Date(emp.lastAction);
+                        const lastActionDay = new Date(lastActionDate);
+                        lastActionDay.setHours(0, 0, 0, 0);
+
+                        // If last action was before today (yesterday or earlier)
+                        if (lastActionDay < today) {
+                            // Determine closing time based on day of week
+                            // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                            const dayOfWeek = lastActionDay.getDay();
+                            
+                            // Sunday closes at 16:00, Mon-Sat closes at 18:00
+                            const closingHour = (dayOfWeek === 0) ? 16 : 18;
+                            
+                            // Set auto logout time to closing hour of that day
+                            const autoLogoutTime = new Date(lastActionDay);
+                            autoLogoutTime.setHours(closingHour, 0, 0, 0);
+                            
+                            emp.status = 'out';
+                            emp.lastAction = autoLogoutTime.toISOString();
+                            
+                            this.data.history.push({
+                                employeeId: emp.id,
+                                employeeName: emp.name,
+                                employeeRole: emp.role,
+                                action: 'Auto Clock Out (System)',
+                                timestamp: autoLogoutTime.toISOString()
+                            });
+                            
+                            dataChanged = true;
+                            
+                            console.log(`Auto clocked out ${emp.name} at ${closingHour}:00 on ${this.formatDate(lastActionDay)} (${dayOfWeek === 0 ? 'Sunday' : 'Weekday'})`);
+                        }
+                    }
+                });
+
+                if (dataChanged) {
+                    this.data.history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    this.saveData();
+                    console.log('Auto clock-out completed for employees who forgot to clock out.');
+                }
+            },
+
+            updateYear: function() {
+                const el = document.getElementById('year');
+                if(el) el.innerText = new Date().getFullYear();
+            },
+
+            // ==========================================
+            // BRANDING
+            // ==========================================
+            loadBranding: function() {
+                const savedBranding = localStorage.getItem('rajani_branding');
+                if (savedBranding) {
+                    try {
+                        return JSON.parse(savedBranding);
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                return null;
+            },
+
+            saveBranding: function(branding) {
+                localStorage.setItem('rajani_branding', JSON.stringify(branding));
+            },
+
+            applyBranding: function() {
+                const branding = this.loadBranding();
+                const name = branding?.name || 'Rajani Superstore';
+                const tagline = branding?.tagline || 'Time Management';
+                const logo = branding?.logo || '';
+
+                const nameEls = [
+                    document.getElementById('brand-name-home'),
+                    document.getElementById('brand-name-admin'),
+                    document.getElementById('brand-name-mobile')
+                ];
+                nameEls.forEach(el => {
+                    if (el) el.textContent = name;
+                });
+
+                const taglineEls = [
+                    document.getElementById('brand-tagline-home'),
+                    document.getElementById('brand-tagline-admin')
+                ];
+                taglineEls.forEach(el => {
+                    if (el) el.textContent = tagline;
+                });
+
+                const logoEls = document.querySelectorAll('.brand-logo');
+                const fallbackEls = document.querySelectorAll('.brand-logo-fallback');
+
+                if (logo) {
+                    logoEls.forEach(img => {
+                        if (img) {
+                            img.src = logo;
+                            img.classList.remove('hidden');
+                        }
+                    });
+                    fallbackEls.forEach(icon => {
+                        if (icon) icon.classList.add('hidden');
+                    });
+                } else {
+                    logoEls.forEach(img => {
+                        if (img) img.classList.add('hidden');
+                    });
+                    fallbackEls.forEach(icon => {
+                        if (icon) icon.classList.remove('hidden');
+                    });
+                }
+            },
+
+            initBrandingSettings: function() {
+                const branding = this.loadBranding();
+                const nameInput = document.getElementById('brand-name-input');
+                const taglineInput = document.getElementById('brand-tagline-input');
+                const logoInput = document.getElementById('brand-logo-input');
+                const logoPreview = document.getElementById('brand-logo-preview');
+                const uploadBtn = document.getElementById('brand-logo-upload');
+                const resetBtn = document.getElementById('brand-logo-reset');
+                const saveBtn = document.getElementById('brand-save');
+
+                if (!nameInput || !taglineInput || !logoInput || !logoPreview || !uploadBtn || !resetBtn || !saveBtn) {
+                    return;
+                }
+
+                nameInput.value = branding?.name || 'Rajani Superstore';
+                taglineInput.value = branding?.tagline || 'Time Management';
+
+                if (branding?.logo) {
+                    logoPreview.src = branding.logo;
+                    logoPreview.classList.remove('hidden');
+                } else {
+                    logoPreview.classList.add('hidden');
+                }
+
+                uploadBtn.onclick = () => logoInput.click();
+
+                logoInput.onchange = (event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please upload an image file');
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            const maxSize = 200;
+                            let width = img.width;
+                            let height = img.height;
+
+                            if (width > height) {
+                                if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                            } else {
+                                if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                            }
+
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+
+                            const dataUrl = canvas.toDataURL('image/png', 0.9);
+                            logoPreview.src = dataUrl;
+                            logoPreview.classList.remove('hidden');
+                            saveBtn.dataset.logo = dataUrl;
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                resetBtn.onclick = () => {
+                    logoPreview.src = '';
+                    logoPreview.classList.add('hidden');
+                    logoInput.value = '';
+                    saveBtn.dataset.logo = '';
+                };
+
+                saveBtn.onclick = () => {
+                    const newBranding = {
+                        name: nameInput.value.trim() || 'Rajani Superstore',
+                        tagline: taglineInput.value.trim() || 'Time Management',
+                        logo: saveBtn.dataset.logo || branding?.logo || ''
+                    };
+                    this.saveBranding(newBranding);
+                    this.applyBranding();
+                };
+            },
+
+            startClock: function() {
+                setInterval(() => {
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const fullTimeString = now.toLocaleTimeString();
+                    
+                    const homeClock = document.getElementById('home-clock');
+                    if (homeClock) homeClock.innerText = timeString;
+
+                    const liveActionClock = document.getElementById('live-action-clock');
+                    if (liveActionClock) liveActionClock.innerText = fullTimeString;
+                    
+                }, 1000);
+            },
+
+            // ==========================================
+            // DATA MANAGEMENT (localStorage + Firebase)
+            // ==========================================
+            
+            loadData: function() {
+                // If Firebase is connected, we don't load from local (listeners handle it)
+                // But we keep local sync for offline support or initialization
+                const storedEmployees = localStorage.getItem('rajani_employees');
+                const storedHistory = localStorage.getItem('rajani_history');
+                const dataVersion = localStorage.getItem('rajani_data_version');
+                const CURRENT_VERSION = '1.3'; 
+
+                // Default Data
+                const defaultEmployees = [
+                    { id: 1, name: "Rosen", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/32.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                    { id: 2, name: "Solange", role: "Shop Floor Assistant", gender: "female", photo: "https://randomuser.me/api/portraits/women/44.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                    { id: 3, name: "Barma", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/85.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                    { id: 4, name: "Sabrina", role: "Shop Floor Assistant", gender: "female", photo: "https://randomuser.me/api/portraits/women/68.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                    { id: 5, name: "Harsha", role: "Team Leader", gender: "female", photo: "https://randomuser.me/api/portraits/women/33.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                    { id: 6, name: "Nimit", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/61.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                ];
+
+                if (storedEmployees && dataVersion === CURRENT_VERSION) {
+                    this.data.employees = JSON.parse(storedEmployees);
+                } else {
+                    this.data.employees = defaultEmployees;
+                    localStorage.setItem('rajani_data_version', CURRENT_VERSION);
+                    this.saveData(); // Will trigger firebase write if connected
+                }
+
+                if (storedHistory) {
+                    this.data.history = JSON.parse(storedHistory);
+                }
+            },
+
+            saveData: function() {
+                // Save to local storage (always)
+                localStorage.setItem('rajani_employees', JSON.stringify(this.data.employees));
+                localStorage.setItem('rajani_history', JSON.stringify(this.data.history));
+
+                // Save to Firebase (if connected)
+                if (this.data.isFirebaseConnected && this.data.db) {
+                    this.data.db.ref('rajani_data').set({
+                        employees: this.data.employees,
+                        history: this.data.history,
+                        lastUpdated: new Date().toISOString()
+                    }).catch(e => {
+                        console.error("Firebase Write Error", e);
+                        this.updateFirebaseStatus('Write Error');
+                    });
+                }
+            },
+
+            // ==========================================
+            // DATE FORMATTING HELPERS (dd/mm/yyyy)
+            // ==========================================
+            
+            /**
+             * Format date as dd/mm/yyyy
+             */
+            formatDate: function(dateObj) {
+                if (!dateObj) return '-';
+                const d = new Date(dateObj);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${day}/${month}/${year}`;
+            },
+
+            /**
+             * Format date with day name: Sun, 01/01/2024
+             */
+            formatDateWithDay: function(dateObj) {
+                if (!dateObj) return '-';
+                const d = new Date(dateObj);
+                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const dayName = days[d.getDay()];
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                return `${dayName}, ${day}/${month}/${year}`;
+            },
+
+            /**
+             * Format time as HH:MM
+             */
+            formatTime: function(dateObj) {
+                if (!dateObj) return '-';
+                return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            },
+
+            /**
+             * Format datetime as dd/mm/yyyy HH:MM:SS
+             */
+            formatDateTime: function(dateObj) {
+                if (!dateObj) return '-';
+                const d = new Date(dateObj);
+                const day = String(d.getDate()).padStart(2, '0');
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const year = d.getFullYear();
+                const time = d.toLocaleTimeString();
+                return `${day}/${month}/${year} ${time}`;
+            },
+
+            /**
+             * Get Sunday 00:00:00 of the week for the provided date
+             */
+            getWeekStart: function(dateObj) {
+                const d = new Date(dateObj);
+                d.setHours(0, 0, 0, 0);
+                const day = d.getDay(); // 0=Sun, 1=Mon, etc.
+                d.setDate(d.getDate() - day);
+                return d;
+            },
+
+            /**
+             * Calculate hours between two dates
+             */
+            hoursBetween: function(start, end) {
+                if (!start || !end) return 0;
+                const ms = end - start;
+                return Math.max(0, ms / 36e5);
+            },
+
+            // ==========================================
+            // NAVIGATION
+            // ==========================================
+            
+            navigate: function(viewId) {
+                const appRoot = document.getElementById('app-root');
+                const template = document.getElementById(`view-${viewId}`);
+                
+                if (!template) {
+                    console.error(`View ${viewId} not found`);
+                    return;
+                }
+
+                // Ensure auto clock-out is applied before any view renders
+                this.checkAutoLogout();
+
+                appRoot.innerHTML = '';
+                appRoot.appendChild(template.content.cloneNode(true));
+                this.data.currentView = viewId;
+
+                lucide.createIcons();
+                this.applyBranding();
+
+                // View specific initialization
+                if (viewId === 'employee-list') {
+                    this.renderEmployeeSelection();
+                    lucide.createIcons();
+                } else if (viewId === 'employee-action') {
+                    this.renderEmployeeAction();
+                } else if (viewId === 'admin-layout') {
+                    this.loadAdminView(this.data.adminView);
+                }
+            },
+
+            // ==========================================
+            // EMPLOYEE PORTAL LOGIC
+            // ==========================================
+            
+            /**
+             * Handle photo file upload
+             */
+            handleFileSelect: function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                if (!file.type.startsWith('image/')) {
+                    alert('Please upload an image file');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Resize to max 300x300
+                        const maxSize = 300;
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > height) {
+                            if (width > maxSize) { height *= maxSize / width; width = maxSize; }
+                        } else {
+                            if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        this.data.tempPhoto = dataUrl;
+                        document.getElementById('modal-preview').src = dataUrl;
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            },
+
+            resetPhotoToDefault: function() {
+                this.data.tempPhoto = null;
+                const genderSelect = document.getElementById('emp-gender');
+                let genderDir = 'men'; // default
+                
+                if (genderSelect && genderSelect.value) {
+                    genderDir = genderSelect.value === 'female' ? 'women' : 'men';
+                } else {
+                    // Random if no gender selected
+                    genderDir = Math.random() > 0.5 ? 'men' : 'women';
+                }
+                
+                const num = Math.floor(Math.random() * 99);
+                const url = `https://randomuser.me/api/portraits/${genderDir}/${num}.jpg`;
+                const preview = document.getElementById('modal-preview');
+                if (preview) {
+                    preview.src = url;
+                }
+            },
+
+            /**
+             * Render employee selection grid
+             */
+            renderEmployeeSelection: function() {
+                const grid = document.getElementById('employee-selection-grid');
+                const searchInput = document.getElementById('employee-search');
+
+                const drawCards = (employees) => {
+                    grid.innerHTML = '';
+
+                    if (employees.length === 0) {
+                        grid.innerHTML = '<div class="col-span-full text-center text-white/60">No employees found.</div>';
+                        return;
+                    }
+
+                    employees.forEach(emp => {
+                        const card = document.createElement('button');
+                        // Bigger card styling
+                        card.className = "emp-card bg-white/95 text-slate-800 p-8 rounded-2xl shadow-2xl border border-white/20 flex flex-col items-center group text-center relative overflow-hidden hover:shadow-[0_25px_60px_-20px_rgba(15,23,42,0.6)]";
+                        card.onclick = () => {
+                            this.data.selectedEmployeeId = emp.id;
+                            this.navigate('employee-action');
+                        };
+
+                        const statusColor = emp.status === 'in' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-slate-300';
+                        const statusText = emp.status === 'in' ? 'Clocked In' : 'Clocked Out';
+                        const statusBadgeClass = emp.status === 'in' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500';
+
+                        card.innerHTML = `
+                            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[var(--theme-primary)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="absolute -right-10 -top-10 w-28 h-28 bg-[var(--theme-accent)]/15 rounded-full blur-2xl"></div>
+                            <div class="relative mb-6">
+                                <div class="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-white via-slate-100 to-slate-200 shadow-inner">
+                                    <img src="${emp.photo}" class="w-full h-full rounded-full bg-slate-100 object-cover group-hover:scale-105 transition-transform duration-500" alt="${emp.name}">
+                                </div>
+                                <div class="absolute bottom-1 right-1 w-8 h-8 ${statusColor} border-4 border-white rounded-full flex items-center justify-center z-10" title="${statusText}"></div>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800 group-hover:text-[var(--theme-primary)] transition-colors mb-1">${emp.name}</h3>
+                            <p class="text-sm text-slate-500 mb-4">${emp.role}</p>
+                            
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${statusBadgeClass} transition-colors">
+                                ${statusText}
+                            </span>
+                        `;
+                        grid.appendChild(card);
+                    });
+                };
+
+                drawCards(this.data.employees);
+
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.oninput = () => {
+                        const query = searchInput.value.trim().toLowerCase();
+                        if (query.length === 0) {
+                            drawCards(this.data.employees);
+                            return;
+                        }
+                        const filtered = this.data.employees.filter(emp =>
+                            emp.name.toLowerCase().includes(query) ||
+                            emp.role.toLowerCase().includes(query)
+                        );
+                        drawCards(filtered);
+                    };
+                }
+            },
+
+            /**
+             * Render employee clock action page
+             */
+            renderEmployeeAction: function() {
+                const empId = this.data.selectedEmployeeId;
+                const emp = this.data.employees.find(e => e.id === empId);
+                
+                if(!emp) {
+                    this.navigate('employee-list');
+                    return;
+                }
+
+                document.getElementById('action-emp-photo').src = emp.photo;
+                document.getElementById('action-emp-name').innerText = emp.name;
+                document.getElementById('action-emp-role').innerText = emp.role;
+
+                const statusIndicator = document.getElementById('action-emp-status-indicator');
+                const statusText = document.getElementById('action-status-text');
+                const lastActivity = document.getElementById('action-last-activity');
+                const btn = document.getElementById('btn-clock-action');
+
+                if (emp.status === 'in') {
+                    // Clocked In State
+                    statusIndicator.className = "absolute bottom-2 right-2 w-10 h-10 rounded-full border-4 border-slate-900 flex items-center justify-center bg-green-500 text-white shadow-lg shadow-green-500/50";
+                    statusIndicator.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i>';
+                    
+                    statusText.innerText = "Clocked In";
+                    statusText.className = "text-sm font-bold px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30";
+                    
+                    btn.className = "w-full py-5 rounded-2xl text-white font-bold text-xl shadow-2xl hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700";
+                    btn.innerHTML = '<i data-lucide="log-out" class="w-6 h-6"></i> Clock Out';
+                    btn.onclick = () => this.performClockAction(emp.id, 'out');
+                } else {
+                    // Clocked Out State
+                    statusIndicator.className = "absolute bottom-2 right-2 w-10 h-10 rounded-full border-4 border-slate-900 flex items-center justify-center bg-slate-500 text-white/50 shadow-lg";
+                    statusIndicator.innerHTML = '<i data-lucide="minus" class="w-5 h-5"></i>';
+
+                    statusText.innerText = "Clocked Out";
+                    statusText.className = "text-sm font-bold px-3 py-1.5 rounded-full bg-white/10 text-white/60 border border-white/10";
+                    
+                    btn.className = "w-full py-5 rounded-2xl text-white font-bold text-xl shadow-2xl hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-green-500/30";
+                    btn.innerHTML = '<i data-lucide="log-in" class="w-6 h-6"></i> Clock In';
+                    btn.onclick = () => this.performClockAction(emp.id, 'in');
+                }
+
+                if (emp.lastAction) {
+                    const d = new Date(emp.lastAction);
+                    lastActivity.innerText = this.formatDateTime(d);
+                } else {
+                    lastActivity.innerText = "No recent activity";
+                }
+                
+                lucide.createIcons();
+            },
+
+            /**
+             * Perform clock in/out action
+             */
+            performClockAction: function(id, type) {
+                const empIndex = this.data.employees.findIndex(e => e.id === id);
+                if (empIndex === -1) return;
+
+                const emp = this.data.employees[empIndex];
+                const now = new Date();
+                const actionText = type === 'in' ? 'Clocked In' : 'Clocked Out';
+
+                emp.status = type;
+                emp.lastAction = now.toISOString();
+
+                this.data.history.unshift({
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    employeeRole: emp.role,
+                    action: actionText,
+                    timestamp: now.toISOString()
+                });
+
+                this.saveData();
+                
+                // Show brief confirmation then redirect back to employee list
+                const btn = document.getElementById('btn-clock-action');
+                const statusText = document.getElementById('action-status-text');
+                const statusIndicator = document.getElementById('action-emp-status-indicator');
+                
+                if (btn && statusText) {
+                    // Update button to show success
+                    btn.disabled = true;
+                    btn.innerHTML = `<i data-lucide="check-circle" class="w-7 h-7"></i> ${actionText} Successfully!`;
+                    btn.className = "w-full py-5 rounded-2xl text-white font-bold text-xl flex items-center justify-center gap-3 bg-gradient-to-r from-slate-600 to-slate-700 cursor-not-allowed opacity-90";
+                    
+                    // Update status text and indicator
+                    if (type === 'in') {
+                        statusText.innerText = "Clocked In";
+                        statusText.className = "text-sm font-bold px-3 py-1.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30";
+                        if (statusIndicator) {
+                            statusIndicator.className = "absolute bottom-2 right-2 w-10 h-10 rounded-full border-4 border-slate-900 flex items-center justify-center bg-green-500 text-white shadow-lg shadow-green-500/50";
+                            statusIndicator.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i>';
+                        }
+                    } else {
+                        statusText.innerText = "Clocked Out";
+                        statusText.className = "text-sm font-bold px-3 py-1.5 rounded-full bg-white/10 text-white/60 border border-white/10";
+                        if (statusIndicator) {
+                            statusIndicator.className = "absolute bottom-2 right-2 w-10 h-10 rounded-full border-4 border-slate-900 flex items-center justify-center bg-slate-500 text-white/50 shadow-lg";
+                            statusIndicator.innerHTML = '<i data-lucide="minus" class="w-5 h-5"></i>';
+                        }
+                    }
+                    
+                    lucide.createIcons();
+                }
+                
+                // Redirect back to employee selection after 1.5 seconds
+                setTimeout(() => {
+                    this.navigate('employee-list');
+                }, 1500);
+            },
+
+            // ==========================================
+            // ADMIN PANEL LOGIC
+            // ==========================================
+
+            handleAdminLogin: function(e) {
+                e.preventDefault();
+                const password = document.getElementById('admin-password').value;
+                const errorMsg = document.getElementById('login-error');
+
+                if (password === '1234') {
+                    errorMsg.classList.add('hidden');
+                    this.navigate('admin-layout');
+                } else {
+                    errorMsg.classList.remove('hidden');
+                }
+            },
+
+            /**
+             * Toggle Reports submenu in sidebar
+             */
+            toggleReportsMenu: function(forceOpen = null) {
+                const submenu = document.getElementById('reports-submenu');
+                const chevron = document.getElementById('reports-chevron');
+                if (!submenu) return;
+
+                const shouldOpen = forceOpen === null ? submenu.classList.contains('hidden') : forceOpen;
+                submenu.classList.toggle('hidden', !shouldOpen);
+
+                if (chevron) {
+                    chevron.style.transform = shouldOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            },
+
+            /**
+             * Set active state for admin navigation
+             */
+            setAdminNavActive: function(subView) {
+                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+                document.querySelectorAll('.sidebar-sublink').forEach(l => l.classList.remove('active'));
+
+                const isReportsChild = (subView === 'reports-activity' || subView === 'reports-weekly');
+                if (isReportsChild) {
+                    const parent = document.getElementById('nav-reports');
+                    if (parent) parent.classList.add('active');
+
+                    const child = document.getElementById(`nav-${subView}`);
+                    if (child) child.classList.add('active');
+
+                    this.toggleReportsMenu(true);
+                } else {
+                    const activeLink = document.getElementById(`nav-${subView}`);
+                    if (activeLink) activeLink.classList.add('active');
+                }
+            },
+
+            /**
+             * Load admin subview
+             */
+            loadAdminView: function(subView) {
+                this.data.adminView = subView;
+                const container = document.getElementById('admin-content-area');
+                const template = document.getElementById(`subview-${subView}`);
+                
+                if (!template) return;
+
+                this.setAdminNavActive(subView);
+
+                container.innerHTML = '';
+                container.appendChild(template.content.cloneNode(true));
+                lucide.createIcons();
+
+                if (subView === 'dashboard') this.renderAdminDashboard();
+                if (subView === 'employees') this.renderAdminEmployees();
+                if (subView === 'reports-activity') this.renderAdminReportsActivity();
+                if (subView === 'reports-weekly') this.renderAdminReportsWeekly();
+                if (subView === 'settings') this.renderAdminSettings();
+            },
+
+            renderAdminSettings: function() {
+                // Initialize theme selection checkmarks
+                setTimeout(() => {
+                    this.setTheme(this.data.currentTheme);
+                    this.initBrandingSettings();
+                    
+                    // Fill Firebase Config
+                    if (this.data.firebaseConfig) {
+                        const ids = ['apiKey', 'authDomain', 'projectId', 'databaseURL', 'storageBucket', 'appId'];
+                        ids.forEach(id => {
+                            const el = document.getElementById('fb-' + id);
+                            if (el && this.data.firebaseConfig[id]) {
+                                el.value = this.data.firebaseConfig[id];
+                            }
+                        });
+                        
+                        if (this.data.isFirebaseConnected) {
+                            this.updateFirebaseStatus('Connected to Cloud');
+                        }
+                    }
+                }, 50);
+            },
+
+            // ==========================================
+            // DASHBOARD
+            // ==========================================
+            
+            renderAdminDashboard: function() {
+                document.getElementById('dash-total-emp').innerText = this.data.employees.length;
+                document.getElementById('dash-clocked-in').innerText = this.data.employees.filter(e => e.status === 'in').length;
+                
+                const today = new Date().toDateString();
+                const todayCount = this.data.history.filter(h => new Date(h.timestamp).toDateString() === today).length;
+                document.getElementById('dash-activity-count').innerText = todayCount;
+
+                // Set current date
+                const dashDate = document.getElementById('dash-date');
+                if (dashDate) dashDate.innerText = this.formatDateWithDay(new Date());
+
+                const tbody = document.getElementById('dash-recent-table');
+                tbody.innerHTML = '';
+                this.data.history.slice(0, 5).forEach(record => {
+                    const isClockIn = record.action === 'Clocked In';
+                    const isAutoClockOut = record.action.includes('Auto');
+                    
+                    // Determine badge class
+                    let badgeClass = 'action-badge-out';
+                    if (isClockIn) {
+                        badgeClass = 'action-badge-in';
+                    } else if (isAutoClockOut) {
+                        badgeClass = 'action-badge-auto';
+                    }
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = 'table-row transition-colors';
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 font-medium">${record.employeeName}</td>
+                        <td class="px-6 py-4">
+                            <span class="${badgeClass} px-3 py-1.5 rounded-full text-xs font-semibold">
+                                ${record.action}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-white/60 font-mono text-xs">${this.formatDateTime(new Date(record.timestamp))}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                if(this.data.history.length === 0) {
+                     tbody.innerHTML = `<tr><td colspan="3" class="px-6 py-8 text-center text-white/30">No activity yet.</td></tr>`;
+                }
+            },
+
+            // ==========================================
+            // EMPLOYEE CRUD
+            // ==========================================
+            
+            renderAdminEmployees: function() {
+                const tbody = document.getElementById('admin-employees-table');
+                const searchInput = document.getElementById('admin-emp-search');
+                
+                const renderTable = (employees) => {
+                    tbody.innerHTML = '';
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                    if (employees.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-white/30">No employees found.</td></tr>';
+                        return;
+                    }
+
+                    employees.forEach(emp => {
+                        const tr = document.createElement('tr');
+                        tr.className = "table-row transition-colors";
+                        
+                        const statusBadge = emp.status === 'in' 
+                            ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400 border border-green-500/30">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-400 mr-2 animate-pulse"></span>In
+                               </span>` 
+                            : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-white/40 border border-white/10">Out</span>`;
+
+                        // Format contact info
+                        let contactHtml = '<span class="text-white/20">-</span>';
+                        if (emp.mobile || emp.email) {
+                            contactHtml = `
+                                <div class="text-xs space-y-1">
+                                    ${emp.mobile ? `<div class="flex items-center gap-2 text-white/50"><i data-lucide="phone" class="w-3 h-3"></i>${emp.mobile}</div>` : ''}
+                                    ${emp.email ? `<div class="flex items-center gap-2 text-white/50"><i data-lucide="mail" class="w-3 h-3"></i>${emp.email}</div>` : ''}
+                                </div>
+                            `;
+                        }
+
+                        // Format off days
+                        let offDaysHtml = '<span class="text-white/20">-</span>';
+                        if (emp.offDays && emp.offDays.length > 0) {
+                            offDaysHtml = emp.offDays.map(d => `<span class="inline-block px-2 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-medium">${dayNames[d]}</span>`).join(' ');
+                        }
+
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-11 w-11">
+                                        <img class="h-11 w-11 rounded-xl bg-white/10 object-cover border border-white/10" src="${emp.photo}" alt="">
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-semibold text-white">${emp.name}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-white/50">${emp.role}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                ${contactHtml}
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">${offDaysHtml}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                ${statusBadge}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button onclick="app.editEmployee(${emp.id})" class="text-[var(--theme-accent)] hover:text-white transition mr-4 font-medium">Edit</button>
+                                <button onclick="app.deleteEmployee(${emp.id})" class="text-red-400 hover:text-red-300 transition font-medium">Delete</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    
+                    // Re-render icons for the new contact icons
+                    lucide.createIcons();
+                };
+
+                // Initial render
+                renderTable(this.data.employees);
+
+                // Setup search
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.oninput = () => {
+                        const query = searchInput.value.trim().toLowerCase();
+                        if (query.length === 0) {
+                            renderTable(this.data.employees);
+                            return;
+                        }
+                        const filtered = this.data.employees.filter(emp =>
+                            emp.name.toLowerCase().includes(query) ||
+                            emp.role.toLowerCase().includes(query) ||
+                            (emp.mobile && emp.mobile.toLowerCase().includes(query)) ||
+                            (emp.email && emp.email.toLowerCase().includes(query))
+                        );
+                        renderTable(filtered);
+                    };
+                }
+            },
+
+            // Toggle Weekly Employee Dropdown
+            toggleWeeklyEmpDropdown: function() {
+                const dropdown = document.getElementById('weekly-emp-dropdown');
+                const chevron = document.getElementById('weekly-emp-chevron');
+                if (dropdown) {
+                    dropdown.classList.toggle('hidden');
+                    if (chevron) {
+                        chevron.style.transform = dropdown.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+                    }
+                }
+            },
+
+            // Select employee from weekly dropdown
+            selectWeeklyEmployee: function(empId, empName) {
+                const hiddenInput = document.getElementById('weekly-emp-select');
+                const searchInput = document.getElementById('weekly-emp-search');
+                const dropdown = document.getElementById('weekly-emp-dropdown');
+                const chevron = document.getElementById('weekly-emp-chevron');
+                
+                if (hiddenInput) hiddenInput.value = empId;
+                if (searchInput) searchInput.value = empName;
+                if (dropdown) dropdown.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+                
+                // Trigger report refresh
+                const weekInput = document.getElementById('weekly-week-input');
+                if (weekInput) {
+                    const picked = weekInput.value ? new Date(weekInput.value + 'T00:00:00') : new Date();
+                    const weekStart = this.getWeekStart(picked);
+                    this.data.weeklySelection = { employeeId: empId, weekStartISO: weekStart.toISOString() };
+                    this.renderWeeklyReport(empId, weekStart);
+                }
+            },
+
+            openEmployeeModal: function(isEdit = false, id = null) {
+                const modal = document.getElementById('employee-modal');
+                const title = document.getElementById('modal-title');
+                const preview = document.getElementById('modal-preview');
+                
+                modal.classList.remove('hidden');
+                this.data.tempPhoto = null;
+                document.getElementById('emp-photo-file').value = '';
+                
+                // Reset off days checkboxes
+                document.querySelectorAll('input[name="off-days"]').forEach(cb => cb.checked = false);
+
+                if (isEdit && id) {
+                    const emp = this.data.employees.find(e => e.id === id);
+                    title.innerText = 'Edit Employee';
+                    document.getElementById('emp-id').value = emp.id;
+                    document.getElementById('emp-name').value = emp.name;
+                    document.getElementById('emp-role').value = emp.role;
+                    document.getElementById('emp-gender').value = emp.gender || '';
+                    document.getElementById('emp-mobile').value = emp.mobile || '';
+                    document.getElementById('emp-email').value = emp.email || '';
+                    preview.src = emp.photo;
+                    
+                    // Set off days checkboxes
+                    if (emp.offDays && emp.offDays.length > 0) {
+                        emp.offDays.forEach(day => {
+                            const cb = document.querySelector(`input[name="off-days"][value="${day}"]`);
+                            if (cb) cb.checked = true;
+                        });
+                    }
+                } else {
+                    title.innerText = 'Add New Employee';
+                    document.getElementById('emp-id').value = '';
+                    document.getElementById('emp-name').value = '';
+                    document.getElementById('emp-role').value = '';
+                    document.getElementById('emp-gender').value = '';
+                    document.getElementById('emp-mobile').value = '';
+                    document.getElementById('emp-email').value = '';
+                    // Set a default random avatar for new employees
+                    const genderDir = Math.random() > 0.5 ? 'men' : 'women';
+                    const num = Math.floor(Math.random() * 99);
+                    preview.src = `https://randomuser.me/api/portraits/${genderDir}/${num}.jpg`;
+                }
+                
+                lucide.createIcons();
+            },
+
+            closeEmployeeModal: function() {
+                document.getElementById('employee-modal').classList.add('hidden');
+            },
+
+            saveEmployee: function(e) {
+                e.preventDefault();
+                const id = document.getElementById('emp-id').value;
+                const name = document.getElementById('emp-name').value;
+                const role = document.getElementById('emp-role').value;
+                const gender = document.getElementById('emp-gender').value;
+                const mobile = document.getElementById('emp-mobile').value.trim();
+                const email = document.getElementById('emp-email').value.trim();
+                
+                // Get selected off days
+                const offDays = [];
+                document.querySelectorAll('input[name="off-days"]:checked').forEach(cb => {
+                    offDays.push(parseInt(cb.value));
+                });
+                
+                let photo = this.data.tempPhoto;
+                
+                // Generate gender-based avatar if no photo uploaded and no existing photo
+                if (!photo) {
+                    if (id) {
+                        const emp = this.data.employees.find(e => e.id == id);
+                        photo = emp && emp.photo ? emp.photo : '';
+                    } else {
+                        photo = document.getElementById('modal-preview').src;
+                    }
+                    
+                    // If still no photo, generate based on gender
+                    if (!photo || photo === '') {
+                        const genderDir = gender === 'female' ? 'women' : (gender === 'male' ? 'men' : (Math.random() > 0.5 ? 'men' : 'women'));
+                        const num = Math.floor(Math.random() * 99);
+                        photo = `https://randomuser.me/api/portraits/${genderDir}/${num}.jpg`;
+                    }
+                }
+
+                if (id) {
+                    const index = this.data.employees.findIndex(e => e.id == id);
+                    if (index !== -1) {
+                        this.data.employees[index].name = name;
+                        this.data.employees[index].role = role;
+                        this.data.employees[index].gender = gender;
+                        this.data.employees[index].mobile = mobile;
+                        this.data.employees[index].email = email;
+                        this.data.employees[index].offDays = offDays;
+                        this.data.employees[index].photo = photo;
+                    }
+                } else {
+                    const newId = this.data.employees.length > 0 ? Math.max(...this.data.employees.map(e => e.id)) + 1 : 1;
+                    this.data.employees.push({
+                        id: newId,
+                        name: name,
+                        role: role,
+                        gender: gender,
+                        mobile: mobile,
+                        email: email,
+                        offDays: offDays,
+                        photo: photo,
+                        status: 'out',
+                        lastAction: null
+                    });
+                }
+                
+                this.saveData();
+                this.closeEmployeeModal();
+                this.renderAdminEmployees();
+            },
+
+            editEmployee: function(id) {
+                this.openEmployeeModal(true, id);
+            },
+
+            deleteEmployee: function(id) {
+                if(confirm('Are you sure you want to delete this employee? History records will remain.')) {
+                    this.data.employees = this.data.employees.filter(e => e.id !== id);
+                    this.saveData();
+                    this.renderAdminEmployees();
+                }
+            },
+
+            // ==========================================
+            // REPORTS - ACTIVITY LOG
+            // ==========================================
+            
+            renderAdminReportsActivity: function() {
+                const tbody = document.getElementById('reports-table-body');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+
+                if (this.data.history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-12 text-center text-white/30">No records found.</td></tr>';
+                    return;
+                }
+
+                const ordered = this.data.history.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                ordered.forEach(record => {
+                    const dateObj = new Date(record.timestamp);
+                    const isClockIn = record.action === 'Clocked In';
+                    const isAutoClockOut = record.action.includes('Auto');
+
+                    const tr = document.createElement('tr');
+                    tr.className = "table-row transition-colors";
+                    
+                    // Determine badge class
+                    let badgeClass = 'action-badge-out';
+                    if (isClockIn) {
+                        badgeClass = 'action-badge-in';
+                    } else if (isAutoClockOut) {
+                        badgeClass = 'action-badge-auto';
+                    }
+                    
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${this.formatDate(dateObj)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-mono">${this.formatTime(dateObj)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium">${record.employeeName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-white/50 text-xs">${record.employeeRole || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="${badgeClass} px-3 py-1.5 rounded-lg text-xs font-bold">
+                                ${record.action}
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            // ==========================================
+            // REPORTS - WEEKLY REPORT
+            // ==========================================
+            
+            renderAdminReportsWeekly: function() {
+                this.initWeeklyReportControls();
+            },
+
+            /**
+             * Build in/out sessions by pairing Clocked In -> Clocked Out
+             * Returns array of { in: Date, out: Date|null, inProgress: boolean }
+             */
+            getEmployeeSessions: function(employeeId) {
+                const records = this.data.history
+                    .filter(r => r.employeeId === employeeId)
+                    .slice()
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                const sessions = [];
+                let openIn = null;
+
+                for (const r of records) {
+                    if (r.action === 'Clocked In') {
+                        openIn = new Date(r.timestamp);
+                    } else if (r.action === 'Clocked Out' || r.action === 'Auto Clock Out (System)') {
+                        if (openIn) {
+                            const out = new Date(r.timestamp);
+                            if (out >= openIn) {
+                                sessions.push({ in: openIn, out: out, inProgress: false });
+                            }
+                            openIn = null;
+                        }
+                    }
+                }
+
+                // Handle open session (currently clocked in - no clock out yet)
+                // Mark as inProgress so we can show "In Progress" instead of a time
+                if (openIn) {
+                    sessions.push({ in: openIn, out: null, inProgress: true });
+                } else {
+                    // Check if employee is currently clocked in but we missed it in history
+                    const emp = this.data.employees.find(e => e.id === employeeId);
+                    if (emp && emp.status === 'in' && emp.lastAction) {
+                        const inTime = new Date(emp.lastAction);
+                        sessions.push({ in: inTime, out: null, inProgress: true });
+                    }
+                }
+
+                return sessions;
+            },
+
+            /**
+             * Render weekly report table
+             */
+            renderWeeklyReport: function(employeeId, weekStart) {
+                const tbody = document.getElementById('weekly-table-body');
+                const rangeEl = document.getElementById('weekly-week-range');
+                const totalEl = document.getElementById('weekly-total-hours');
+
+                if (!tbody || !rangeEl || !totalEl) return;
+
+                const start = new Date(weekStart);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(start);
+                end.setDate(end.getDate() + 7);
+
+                const rangeText = `${this.formatDate(start)} - ${this.formatDate(new Date(end.getTime() - 1))}`;
+                rangeEl.textContent = rangeText;
+
+                const sessions = this.getEmployeeSessions(employeeId);
+                const now = new Date();
+                
+                // Get employee off days
+                const emp = this.data.employees.find(e => e.id === employeeId);
+                const offDays = emp && emp.offDays ? emp.offDays : [];
+
+                // 7 days starting from Sunday
+                const days = Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date(start);
+                    d.setDate(d.getDate() + i);
+                    return d;
+                });
+
+                const rows = days.map(dayDate => {
+                    const dayStart = new Date(dayDate);
+                    dayStart.setHours(0, 0, 0, 0);
+                    const dayEnd = new Date(dayStart);
+                    dayEnd.setDate(dayEnd.getDate() + 1);
+                    
+                    // Check if this is an off day
+                    const dayOfWeek = dayDate.getDay(); // 0=Sun, 1=Mon, etc.
+                    const isOffDay = offDays.includes(dayOfWeek);
+
+                    // Filter sessions that overlap with this day
+                    const daySessions = sessions
+                        .filter(s => {
+                            // For in-progress sessions, check if clock-in was before day end
+                            if (s.inProgress) {
+                                return s.in < dayEnd && s.in >= dayStart;
+                            }
+                            // For completed sessions, check overlap
+                            return s.in < dayEnd && s.out > dayStart;
+                        })
+                        .map(s => {
+                            const sIn = new Date(Math.max(s.in.getTime(), dayStart.getTime()));
+                            let sOut;
+                            let isInProgress = s.inProgress;
+                            
+                            if (s.inProgress) {
+                                // For in-progress, use current time for calculation but mark as in progress
+                                sOut = new Date(Math.min(now.getTime(), dayEnd.getTime()));
+                            } else {
+                                sOut = new Date(Math.min(s.out.getTime(), dayEnd.getTime()));
+                            }
+                            
+                            return { in: sIn, out: sOut, inProgress: isInProgress };
+                        });
+
+                    let earliestIn = null;
+                    let latestOut = null;
+                    let total = 0;
+                    let hasInProgress = false;
+
+                    for (const s of daySessions) {
+                        if (!earliestIn || s.in < earliestIn) earliestIn = s.in;
+                        if (!s.inProgress) {
+                            if (!latestOut || s.out > latestOut) latestOut = s.out;
+                        }
+                        if (s.inProgress) hasInProgress = true;
+                        total += this.hoursBetween(s.in, s.out);
+                    }
+
+                    return {
+                        day: dayDate,
+                        in: earliestIn,
+                        out: latestOut,
+                        hours: total,
+                        inProgress: hasInProgress,
+                        isOffDay: isOffDay
+                    };
+                });
+
+                tbody.innerHTML = '';
+                let weekTotal = 0;
+
+                for (const r of rows) {
+                    weekTotal += r.hours;
+
+                    const tr = document.createElement('tr');
+                    tr.className = 'table-row';
+                    const dayLabel = this.formatDateWithDay(r.day);
+                    const hoursStr = r.hours ? r.hours.toFixed(2) : '0.00';
+                    
+                    // Apply off day styling
+                    if (r.isOffDay) {
+                        tr.className = 'table-row off-day-row';
+                    }
+                    
+                    // Show "In Progress" if employee is currently clocked in for this day
+                    let outDisplay;
+                    if (r.isOffDay && !r.in) {
+                        outDisplay = '<span class="badge-off-day">OFF DAY</span>';
+                    } else if (r.inProgress) {
+                        outDisplay = '<span class="badge-in-progress">In Progress</span>';
+                    } else {
+                        outDisplay = `<span class="font-mono">${this.formatTime(r.out)}</span>`;
+                    }
+                    
+                    // Day label with off day badge
+                    const dayLabelHtml = r.isOffDay 
+                        ? `${dayLabel} <span class="ml-2 px-2 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-medium">OFF</span>`
+                        : dayLabel;
+
+                    // Hours color
+                    const hoursClass = r.hours >= 8 ? 'hours-good' : 'hours-normal';
+
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap font-medium">${dayLabelHtml}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-mono">${this.formatTime(r.in)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${outDisplay}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right font-mono font-semibold ${hoursClass}">${hoursStr}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+
+                totalEl.textContent = weekTotal.toFixed(2);
+            },
+
+            /**
+             * Initialize weekly report controls
+             */
+            initWeeklyReportControls: function() {
+                const empSelect = document.getElementById('weekly-emp-select');
+                const empSearch = document.getElementById('weekly-emp-search');
+                const empDropdown = document.getElementById('weekly-emp-dropdown');
+                const weekInput = document.getElementById('weekly-week-input');
+                const prevBtn = document.getElementById('weekly-prev');
+                const nextBtn = document.getElementById('weekly-next');
+
+                if (!empSelect || !weekInput || !prevBtn || !nextBtn) return;
+
+                // Render employee dropdown options
+                const renderDropdownOptions = (employees) => {
+                    if (!empDropdown) return;
+                    empDropdown.innerHTML = '';
+                    
+                    if (employees.length === 0) {
+                        empDropdown.innerHTML = '<div class="autocomplete-no-results">No employees found</div>';
+                        return;
+                    }
+                    
+                    employees.forEach(emp => {
+                        const option = document.createElement('div');
+                        option.className = 'autocomplete-option';
+                        option.innerHTML = `
+                            <img src="${emp.photo}" alt="${emp.name}">
+                            <div class="emp-info">
+                                <div class="emp-name">${emp.name}</div>
+                                <div class="emp-role">${emp.role}</div>
+                            </div>
+                        `;
+                        option.onclick = () => this.selectWeeklyEmployee(emp.id, `${emp.name} - ${emp.role}`);
+                        empDropdown.appendChild(option);
+                    });
+                };
+
+                // Initialize with all employees
+                renderDropdownOptions(this.data.employees);
+
+                // Set default employee
+                const defaultEmp = this.data.employees[0];
+                if (defaultEmp) {
+                    empSelect.value = String(defaultEmp.id);
+                    if (empSearch) empSearch.value = `${defaultEmp.name} - ${defaultEmp.role}`;
+                }
+
+                // Search functionality
+                if (empSearch) {
+                    empSearch.onfocus = () => {
+                        if (empDropdown) empDropdown.classList.remove('hidden');
+                    };
+                    
+                    empSearch.oninput = () => {
+                        const query = empSearch.value.trim().toLowerCase();
+                        if (empDropdown) empDropdown.classList.remove('hidden');
+                        
+                        if (query.length === 0) {
+                            renderDropdownOptions(this.data.employees);
+                            return;
+                        }
+                        
+                        const filtered = this.data.employees.filter(emp =>
+                            emp.name.toLowerCase().includes(query) ||
+                            emp.role.toLowerCase().includes(query)
+                        );
+                        renderDropdownOptions(filtered);
+                    };
+                }
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    const container = document.getElementById('weekly-emp-dropdown-container');
+                    if (container && !container.contains(e.target) && empDropdown) {
+                        empDropdown.classList.add('hidden');
+                    }
+                });
+
+                // Set today's date
+                const today = new Date();
+                const iso = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                weekInput.value = iso;
+
+                const refresh = () => {
+                    const empId = Number(empSelect.value);
+                    const picked = weekInput.value ? new Date(weekInput.value + 'T00:00:00') : new Date();
+                    const weekStart = this.getWeekStart(picked);
+
+                    this.data.weeklySelection = { employeeId: empId, weekStartISO: weekStart.toISOString() };
+
+                    this.renderWeeklyReport(empId, weekStart);
+                };
+
+                weekInput.onchange = refresh;
+
+                prevBtn.onclick = () => {
+                    const d = weekInput.value ? new Date(weekInput.value + 'T00:00:00') : new Date();
+                    d.setDate(d.getDate() - 7);
+                    weekInput.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                    refresh();
+                };
+
+                nextBtn.onclick = () => {
+                    const d = weekInput.value ? new Date(weekInput.value + 'T00:00:00') : new Date();
+                    d.setDate(d.getDate() + 7);
+                    weekInput.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                    refresh();
+                };
+
+                refresh();
+            },
+            
+            /**
+             * Clear all history records
+             */
+            clearHistory: function() {
+                if(confirm("Are you sure you want to clear the entire timesheet history? This cannot be undone.")) {
+                    this.data.history = [];
+                    this.saveData();
+                    this.renderAdminReportsActivity();
+                }
+            },
+
+            // ==========================================
+            // CSV EXPORT
+            // ==========================================
+
+            exportCSV: function(mode = 'activity') {
+                if (mode === 'weekly') {
+                    const sel = this.data.weeklySelection || {};
+                    const empId = Number(sel.employeeId);
+                    const weekStart = sel.weekStartISO ? new Date(sel.weekStartISO) : this.getWeekStart(new Date());
+
+                    const emp = this.data.employees.find(e => e.id === empId) || null;
+                    const empName = emp ? emp.name : 'Employee';
+
+                    const start = new Date(weekStart);
+                    start.setHours(0, 0, 0, 0);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 7);
+
+                    const sessions = this.getEmployeeSessions(empId);
+                    const days = Array.from({ length: 7 }, (_, i) => {
+                        const d = new Date(start);
+                        d.setDate(d.getDate() + i);
+                        return d;
+                    });
+
+                    const now = new Date();
+                    
+                    const rows = days.map(dayDate => {
+                        const dayStart = new Date(dayDate);
+                        dayStart.setHours(0, 0, 0, 0);
+                        const dayEnd = new Date(dayStart);
+                        dayEnd.setDate(dayEnd.getDate() + 1);
+
+                        const daySessions = sessions
+                            .filter(s => {
+                                if (s.inProgress) {
+                                    return s.in < dayEnd && s.in >= dayStart;
+                                }
+                                return s.in < dayEnd && s.out > dayStart;
+                            })
+                            .map(s => {
+                                const sIn = new Date(Math.max(s.in.getTime(), dayStart.getTime()));
+                                let sOut;
+                                if (s.inProgress) {
+                                    sOut = new Date(Math.min(now.getTime(), dayEnd.getTime()));
+                                } else {
+                                    sOut = new Date(Math.min(s.out.getTime(), dayEnd.getTime()));
+                                }
+                                return { in: sIn, out: sOut, inProgress: s.inProgress };
+                            });
+
+                        let earliestIn = null;
+                        let latestOut = null;
+                        let total = 0;
+                        let hasInProgress = false;
+                        
+                        for (const s of daySessions) {
+                            if (!earliestIn || s.in < earliestIn) earliestIn = s.in;
+                            if (!s.inProgress) {
+                                if (!latestOut || s.out > latestOut) latestOut = s.out;
+                            }
+                            if (s.inProgress) hasInProgress = true;
+                            total += this.hoursBetween(s.in, s.out);
+                        }
+
+                        return {
+                            day: dayDate,
+                            in: earliestIn,
+                            out: latestOut,
+                            hours: total,
+                            inProgress: hasInProgress
+                        };
+                    });
+
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += `Employee,Week Start,Week End\n"${empName}",${this.formatDate(start)},${this.formatDate(new Date(end.getTime() - 1))}\n\n`;
+                    csvContent += "Day,Clock In,Clock Out,Hours\n";
+
+                    rows.forEach(r => {
+                        const dayLabel = this.formatDateWithDay(r.day);
+                        const inStr = r.in ? this.formatTime(r.in) : '-';
+                        const outStr = r.inProgress ? 'In Progress' : (r.out ? this.formatTime(r.out) : '-');
+                        const hoursStr = (r.hours || 0).toFixed(2);
+                        csvContent += `${dayLabel},${inStr},${outStr},${hoursStr}\r\n`;
+                    });
+                    
+                    const totalHours = rows.reduce((sum, r) => sum + (r.hours || 0), 0);
+                    csvContent += `\nTOTAL,,,${totalHours.toFixed(2)}\r\n`;
+
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `rajani_weekly_report_${empName.replace(/\s+/g,'_')}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    return;
+                }
+
+                // Activity Log Export
+                if (this.data.history.length === 0) {
+                    alert("No data to export");
+                    return;
+                }
+
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Date,Time,Employee Name,Role,Action\n";
+
+                const ordered = this.data.history.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                const self = this;
+                ordered.forEach(function(rowArray) {
+                    const d = new Date(rowArray.timestamp);
+                    let row = `${self.formatDate(d)},${self.formatTime(d)},"${rowArray.employeeName}","${rowArray.employeeRole || ''}",${rowArray.action}`;
+                    csvContent += row + "\r\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", "rajani_activity_log.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        };
+
+        // Start App when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>

@@ -1215,38 +1215,22 @@
                         </div>
                         Cloud Storage (Firebase)
                     </h3>
-                    <p class="text-sm text-white/60 mb-4">Connect to a Firebase Realtime Database to sync data across devices. Leave blank to use this device's local storage.</p>
+                    <p class="text-sm text-white/60 mb-4">Connect to a Firebase Realtime Database to sync data across devices. Paste your Firebase config JSON below. Leave blank to use local storage only.</p>
                     
-                    <div class="space-y-3">
+                    <div class="space-y-4">
                         <div>
-                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">API Key</label>
-                            <input id="fb-apiKey" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="AIzaSy...">
+                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Configuration Object (JSON)</label>
+                            <textarea id="fb-config-json" rows="8" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition font-mono text-sm" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "project-id.firebaseapp.com",
+  "projectId": "project-id",
+  "databaseURL": "https://project-id-default-rtdb.firebaseio.com",
+  "storageBucket": "project-id.appspot.com",
+  "appId": "1:123456789:web:..."
+}'></textarea>
+                            <p class="text-xs text-white/30 mt-2">Paste the firebaseConfig object from your Firebase Console. Supports both JSON and JavaScript object notation.</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Auth Domain</label>
-                                <input id="fb-authDomain" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="project-id.firebaseapp.com">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Project ID</label>
-                                <input id="fb-projectId" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="project-id">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Database URL (Realtime DB)</label>
-                            <input id="fb-databaseURL" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="https://project-id-default-rtdb.firebaseio.com">
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Storage Bucket</label>
-                                <input id="fb-storageBucket" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="project-id.appspot.com">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">App ID</label>
-                                <input id="fb-appId" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="1:123456789:web:...">
-                            </div>
-                        </div>
-                        <div class="flex gap-3 pt-2">
+                        <div class="flex gap-3">
                             <button onclick="app.saveFirebaseConfig()" class="flex-1 py-3 px-6 bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] text-white rounded-xl shadow-lg transition font-bold hover:shadow-xl hover:-translate-y-1">
                                 Save & Connect
                             </button>
@@ -1337,24 +1321,44 @@
             },
 
             saveFirebaseConfig: function() {
-                const apiKey = document.getElementById('fb-apiKey').value.trim();
-                const authDomain = document.getElementById('fb-authDomain').value.trim();
-                const projectId = document.getElementById('fb-projectId').value.trim();
-                const databaseURL = document.getElementById('fb-databaseURL').value.trim();
-                const storageBucket = document.getElementById('fb-storageBucket').value.trim();
-                const appId = document.getElementById('fb-appId').value.trim();
-
-                if (!apiKey || !databaseURL) {
-                    alert('API Key and Database URL are required!');
+                const jsonInput = document.getElementById('fb-config-json').value.trim();
+                
+                if (!jsonInput) {
+                    alert('Please paste your Firebase configuration JSON.');
                     return;
                 }
 
-                const config = { apiKey, authDomain, projectId, databaseURL, storageBucket, appId };
+                let config;
+                try {
+                    // Try parsing as standard JSON first
+                    config = JSON.parse(jsonInput);
+                } catch (e) {
+                    // Try parsing as JS object notation (unquoted keys)
+                    try {
+                        // Convert JS object notation to JSON by adding quotes to keys
+                        const jsonFixed = jsonInput
+                            .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')
+                            .replace(/'/g, '"');
+                        config = JSON.parse(jsonFixed);
+                    } catch (e2) {
+                        alert('Invalid configuration format. Please paste a valid JSON object.');
+                        return;
+                    }
+                }
+
+                // Validate required fields
+                if (!config.apiKey || !config.databaseURL) {
+                    alert('Configuration must include at least "apiKey" and "databaseURL" fields.');
+                    return;
+                }
+
                 this.data.firebaseConfig = config;
                 localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
                 
-                // Reload to init firebase
+                // Initialize Firebase connection
                 this.initFirebase();
+                
+                alert('Firebase configuration saved! Connecting...');
             },
 
             clearFirebaseConfig: function() {
@@ -1369,11 +1373,10 @@
                     this.updateFirebaseStatus('Disconnected (Using Local Storage)');
                     alert('Disconnected. Now using local storage.');
                     
-                    // Clear inputs if on settings page
-                    if(document.getElementById('fb-apiKey')) {
-                        ['apiKey', 'authDomain', 'projectId', 'databaseURL', 'storageBucket', 'appId'].forEach(id => {
-                            document.getElementById('fb-' + id).value = '';
-                        });
+                    // Clear textarea if on settings page
+                    const jsonInput = document.getElementById('fb-config-json');
+                    if (jsonInput) {
+                        jsonInput.value = '';
                     }
                 }
             },
@@ -2222,15 +2225,10 @@
                     this.setTheme(this.data.currentTheme);
                     this.initBrandingSettings();
                     
-                    // Fill Firebase Config
-                    if (this.data.firebaseConfig) {
-                        const ids = ['apiKey', 'authDomain', 'projectId', 'databaseURL', 'storageBucket', 'appId'];
-                        ids.forEach(id => {
-                            const el = document.getElementById('fb-' + id);
-                            if (el && this.data.firebaseConfig[id]) {
-                                el.value = this.data.firebaseConfig[id];
-                            }
-                        });
+                    // Fill Firebase Config textarea with pretty-printed JSON
+                    const jsonInput = document.getElementById('fb-config-json');
+                    if (jsonInput && this.data.firebaseConfig) {
+                        jsonInput.value = JSON.stringify(this.data.firebaseConfig, null, 2);
                         
                         if (this.data.isFirebaseConnected) {
                             this.updateFirebaseStatus('Connected to Cloud');

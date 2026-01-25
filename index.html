@@ -755,6 +755,9 @@
     </template>
 
     <script>
+    // Default Firebase Configuration (Base64 encoded for basic obfuscation)
+    const _fc = 'eyJhcGlLZXkiOiJBSXphU3lDNjVfRHJPaGJieXBjM190Y2xoRTh3N1pHaHhyM1lpeW8iLCJhdXRoRG9tYWluIjoicmFqYW5pc3VwZXJzdG9yZS01MjI0OC5maXJlYmFzZWFwcC5jb20iLCJkYXRhYmFzZVVSTCI6Imh0dHBzOi8vcmFqYW5pc3VwZXJzdG9yZS01MjI0OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCJwcm9qZWN0SWQiOiJyYWphbmlzdXBlcnN0b3JlLTUyMjQ4Iiwic3RvcmFnZUJ1Y2tldCI6InJhamFuaXN1cGVyc3RvcmUtNTIyNDguZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiMTA5MTEzMjQ4Mjc4IiwiYXBwSWQiOiIxOjEwOTExMzI0ODI3ODp3ZWI6NGIyMTliMzA0NGY5YmZiNDU4YzMzNyJ9';
+    
     const app = {
         data: {
             employees: [],
@@ -770,12 +773,22 @@
             currentIP: null
         },
 
+        // Decode default Firebase config
+        getDefaultFirebaseConfig() {
+            try {
+                return JSON.parse(atob(_fc));
+            } catch (e) {
+                console.error('Failed to decode default config');
+                return null;
+            }
+        },
+
         // INIT
         init() {
             this.loadTheme();
             this.loadLocationSettings();
+            this.initFirebase(); // Initialize Firebase FIRST
             this.loadData();
-            this.initFirebase();
             this.checkAutoLogout();
             this.startClock();
             this.navigate('home');
@@ -1164,10 +1177,33 @@
 
         // FIREBASE
         initFirebase() {
-            const configStr = localStorage.getItem('rajani_firebase_config');
-            if (!configStr) return;
+            // Try to get config: first from localStorage, then use default
+            let configStr = localStorage.getItem('rajani_firebase_config');
+            let config = null;
+            
+            if (configStr) {
+                try {
+                    config = JSON.parse(configStr);
+                } catch (e) {
+                    console.error('Invalid stored Firebase config');
+                }
+            }
+            
+            // If no stored config or invalid, use default encoded config
+            if (!config) {
+                config = this.getDefaultFirebaseConfig();
+                if (config) {
+                    // Store it for future reference
+                    localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
+                }
+            }
+            
+            if (!config) {
+                console.error('No Firebase configuration available');
+                return;
+            }
+            
             try {
-                const config = JSON.parse(configStr);
                 if (!firebase.apps.length) firebase.initializeApp(config);
                 this.data.db = firebase.database();
                 this.data.dbRef = this.data.db.ref('rajani_data');
@@ -1186,20 +1222,6 @@
                     localStorage.setItem('rajani_employees', JSON.stringify(this.data.employees));
                     localStorage.setItem('rajani_history', JSON.stringify(this.data.history));
                 });
-                // Sync device settings from cloud
-                this.data.db.ref('rajani_device_settings').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (val) {
-                        if (val.whitelistedDevices) {
-                            this.data.whitelistedDevices = val.whitelistedDevices;
-                            localStorage.setItem('rajani_whitelisted_devices', JSON.stringify(val.whitelistedDevices));
-                        }
-                        if (val.whitelistEnabled !== undefined) {
-                            this.data.deviceWhitelistEnabled = val.whitelistEnabled;
-                            localStorage.setItem('rajani_whitelist_enabled', val.whitelistEnabled ? 'true' : 'false');
-                        }
-                    }
-                });
                 // Sync location settings from cloud
                 this.data.db.ref('rajani_location_settings').on('value', snapshot => {
                     const val = snapshot.val();
@@ -1208,6 +1230,24 @@
                         localStorage.setItem('rajani_location_settings', JSON.stringify(val));
                     }
                 });
+                // Sync branding from cloud
+                this.data.db.ref('rajani_branding').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (val) {
+                        localStorage.setItem('rajani_branding', JSON.stringify(val));
+                        this.applyBranding();
+                    }
+                });
+                // Sync theme from cloud
+                this.data.db.ref('rajani_theme').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (val) {
+                        this.data.currentTheme = val;
+                        localStorage.setItem('rajani_theme', val);
+                        this.applyTheme();
+                    }
+                });
+                console.log('Firebase connected successfully');
             } catch (e) {
                 console.error('Firebase init error:', e);
             }
@@ -1748,20 +1788,25 @@
             document.getElementById('brand-logo').value = branding.logo || '';
             // Firebase config
             const config = localStorage.getItem('rajani_firebase_config');
-            document.getElementById('firebase-config').value = config || '';
+            const configTextarea = document.getElementById('firebase-config');
+            if (configTextarea) {
+                try {
+                    configTextarea.value = config ? JSON.stringify(JSON.parse(config), null, 2) : '';
+                } catch (e) {
+                    configTextarea.value = config || '';
+                }
+            }
             // Status badge
             const badge = document.getElementById('firebase-status-badge');
-            if (this.data.db) {
-                badge.textContent = 'Connected';
-                badge.className = 'px-2 py-0.5 rounded text-xs badge-green';
-            } else {
-                badge.textContent = 'Local Only';
-                badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+            if (badge) {
+                if (this.data.db) {
+                    badge.textContent = 'Connected';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-green';
+                } else {
+                    badge.textContent = 'Local Only';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                }
             }
-            // Device Access Control
-            document.getElementById('current-device-id').textContent = this.data.deviceId;
-            this.updateDeviceAccessUI();
-            this.renderWhitelistedDevices();
             // Location Restriction
             this.renderLocationSettings();
         },
@@ -1782,6 +1827,10 @@
         setTheme(name) {
             this.data.currentTheme = name;
             localStorage.setItem('rajani_theme', name);
+            // Sync to Firebase
+            if (this.data.db) {
+                this.data.db.ref('rajani_theme').set(name);
+            }
             this.applyTheme();
             this.updateThemeChecks();
         },
@@ -1814,6 +1863,10 @@
                 logo: document.getElementById('brand-logo').value.trim()
             };
             localStorage.setItem('rajani_branding', JSON.stringify(branding));
+            // Sync to Firebase
+            if (this.data.db) {
+                this.data.db.ref('rajani_branding').set(branding);
+            }
             this.applyBranding();
             this.uiToast('Branding saved!', 'success');
         },

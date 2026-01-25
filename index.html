@@ -49,6 +49,23 @@
         .fade-in {
             animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
+
+        /* Modal + Toast micro-interactions */
+        .app-pop {
+            animation: appPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes appPop {
+            from { transform: translateY(10px) scale(0.98); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .toast-enter {
+            animation: toastIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes toastIn {
+            from { transform: translateY(-6px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
         
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px) scale(0.98); }
@@ -307,6 +324,31 @@
             color: rgba(255, 255, 255, 0.4);
             font-size: 14px;
         }
+        
+        /* Accordion Styles */
+        .accordion-item {
+            transition: all 0.3s ease;
+        }
+        .accordion-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .accordion-header {
+            cursor: pointer;
+        }
+        .accordion-chevron {
+            transition: transform 0.3s ease;
+        }
+        .accordion-item.open .accordion-chevron {
+            transform: rotate(180deg);
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        .accordion-item.open .accordion-content {
+            max-height: 1000px;
+        }
     </style>
 </head>
 <body class="text-white h-screen flex flex-col overflow-hidden">
@@ -314,6 +356,19 @@
     <!-- App Container -->
     <div id="app-root" class="h-full w-full relative">
         <!-- Views injected here -->
+    </div>
+
+    <!-- Toasts (non-blocking notifications) -->
+    <div id="app-toast-container" class="fixed top-4 right-4 z-[9999] space-y-3"></div>
+
+    <!-- Modal (alerts & confirmations) -->
+    <div id="app-modal" class="fixed inset-0 z-[9998] hidden">
+        <div id="app-modal-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+        <div class="relative min-h-full flex items-center justify-center p-4">
+            <div id="app-modal-panel" class="w-full max-w-md rounded-2xl bg-slate-900/95 border border-white/10 shadow-2xl overflow-hidden app-pop">
+                <!-- injected -->
+            </div>
+        </div>
     </div>
 
     <!-- Templates -->
@@ -619,7 +674,7 @@
                         <i id="reports-chevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform text-white/40"></i>
                     </button>
                     
-                    <div id="reports-submenu" class="ml-6 mt-1 mb-2 space-y-1 hidden border-l border-white/10 pl-4">
+                    <div id="reports-submenu" class="ml-6 mt-1 mb-2 space-y-1 border-l border-white/10 pl-4 hidden">
                         <button onclick="app.loadAdminView('reports-activity')" id="nav-reports-activity" class="sidebar-sublink w-full text-left flex items-center px-4 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-white/60 hover:text-white">
                             <i data-lucide="list" class="w-4 h-4 mr-3"></i>
                             Activity Log
@@ -1073,173 +1128,177 @@
 
     <!-- Admin Sub-View: Settings -->
     <template id="subview-settings">
-        <div class="fade-in max-w-4xl mx-auto">
-            <div class="mb-8">
-                <h2 class="text-3xl font-bold text-white mb-1">Settings</h2>
-                <p class="text-white/50">Customize the appearance and behavior of the application.</p>
+        <div class="fade-in max-w-3xl mx-auto">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-white mb-1">Settings</h2>
+                <p class="text-white/50 text-sm">Customize the application.</p>
             </div>
             
-            <div class="grid grid-cols-1 gap-6">
-                <!-- Color Theme -->
-                <div class="stat-card p-6 rounded-2xl">
-                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
-                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
-                            <i data-lucide="palette" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+            <div class="space-y-2" id="settings-accordion">
+                <!-- Accordion: Accent Color -->
+                <div class="accordion-item bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="accordion-header w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-[var(--theme-primary)]/20 flex items-center justify-center">
+                                <i data-lucide="palette" class="w-4 h-4 text-[var(--theme-accent)]"></i>
+                            </div>
+                            <span class="font-semibold text-white text-sm">Accent Color</span>
                         </div>
-                        Accent Color
-                    </h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <!-- Theme Option 1: Blue -->
-                        <button onclick="app.setTheme('blue')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-indigo-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
-                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-indigo-600 to-blue-500 shadow-lg shadow-indigo-500/30"></div>
-                            <span class="font-medium text-white/80">Corporate Blue</span>
-                            <div id="check-blue" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
-                                <i data-lucide="check" class="w-4 h-4"></i>
+                        <i data-lucide="chevron-down" class="accordion-chevron w-4 h-4 text-white/40 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content hidden border-t border-white/5">
+                        <div class="px-4 py-4">
+                            <div class="grid grid-cols-4 gap-2">
+                                <button onclick="app.setTheme('blue')" class="group relative p-2 rounded-lg border border-white/10 hover:border-indigo-500 transition-all flex flex-col items-center gap-2 bg-white/5">
+                                    <div class="w-full h-8 rounded bg-gradient-to-r from-indigo-600 to-blue-500"></div>
+                                    <span class="text-xs text-white/70">Blue</span>
+                                    <div id="check-blue" class="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full text-white items-center justify-center hidden">
+                                        <i data-lucide="check" class="w-3 h-3"></i>
+                                    </div>
+                                </button>
+                                <button onclick="app.setTheme('green')" class="group relative p-2 rounded-lg border border-white/10 hover:border-emerald-500 transition-all flex flex-col items-center gap-2 bg-white/5">
+                                    <div class="w-full h-8 rounded bg-gradient-to-r from-emerald-600 to-teal-500"></div>
+                                    <span class="text-xs text-white/70">Green</span>
+                                    <div id="check-green" class="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full text-white items-center justify-center hidden">
+                                        <i data-lucide="check" class="w-3 h-3"></i>
+                                    </div>
+                                </button>
+                                <button onclick="app.setTheme('purple')" class="group relative p-2 rounded-lg border border-white/10 hover:border-purple-500 transition-all flex flex-col items-center gap-2 bg-white/5">
+                                    <div class="w-full h-8 rounded bg-gradient-to-r from-purple-600 to-fuchsia-500"></div>
+                                    <span class="text-xs text-white/70">Purple</span>
+                                    <div id="check-purple" class="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full text-white items-center justify-center hidden">
+                                        <i data-lucide="check" class="w-3 h-3"></i>
+                                    </div>
+                                </button>
+                                <button onclick="app.setTheme('orange')" class="group relative p-2 rounded-lg border border-white/10 hover:border-orange-500 transition-all flex flex-col items-center gap-2 bg-white/5">
+                                    <div class="w-full h-8 rounded bg-gradient-to-r from-orange-600 to-red-500"></div>
+                                    <span class="text-xs text-white/70">Orange</span>
+                                    <div id="check-orange" class="absolute top-1 right-1 w-4 h-4 bg-green-500 rounded-full text-white items-center justify-center hidden">
+                                        <i data-lucide="check" class="w-3 h-3"></i>
+                                    </div>
+                                </button>
                             </div>
-                        </button>
-                        
-                        <!-- Theme Option 2: Green -->
-                        <button onclick="app.setTheme('green')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-emerald-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
-                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-500 shadow-lg shadow-emerald-500/30"></div>
-                            <span class="font-medium text-white/80">Nature Green</span>
-                            <div id="check-green" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
-                                <i data-lucide="check" class="w-4 h-4"></i>
-                            </div>
-                        </button>
-
-                        <!-- Theme Option 3: Purple -->
-                        <button onclick="app.setTheme('purple')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-purple-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
-                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-purple-600 to-fuchsia-500 shadow-lg shadow-purple-500/30"></div>
-                            <span class="font-medium text-white/80">Royal Purple</span>
-                            <div id="check-purple" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
-                                <i data-lucide="check" class="w-4 h-4"></i>
-                            </div>
-                        </button>
-                        
-                        <!-- Theme Option 4: Orange -->
-                        <button onclick="app.setTheme('orange')" class="group relative p-4 rounded-xl border-2 border-white/10 hover:border-orange-500 transition-all flex flex-col items-center gap-3 bg-white/5 hover:bg-white/10">
-                            <div class="w-full h-14 rounded-lg bg-gradient-to-r from-orange-600 to-red-500 shadow-lg shadow-orange-500/30"></div>
-                            <span class="font-medium text-white/80">Sunset Orange</span>
-                            <div id="check-orange" class="absolute top-2 right-2 w-6 h-6 bg-green-500 rounded-full text-white items-center justify-center hidden shadow-lg">
-                                <i data-lucide="check" class="w-4 h-4"></i>
-                            </div>
-                        </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="stat-card p-6 rounded-2xl">
-                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
-                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
-                            <i data-lucide="badge-check" class="w-5 h-5 text-[var(--theme-accent)]"></i>
-                        </div>
-                        Company Branding
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Company Name</label>
-                                <input id="brand-name-input" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="Company Name">
+                <!-- Accordion: Company Branding -->
+                <div class="accordion-item bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="accordion-header w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-[var(--theme-primary)]/20 flex items-center justify-center">
+                                <i data-lucide="building-2" class="w-4 h-4 text-[var(--theme-accent)]"></i>
                             </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Tagline</label>
-                                <input id="brand-tagline-input" type="text" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition" placeholder="Tagline">
-                            </div>
+                            <span class="font-semibold text-white text-sm">Company Branding</span>
                         </div>
-                        <div class="space-y-3">
-                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider">Logo</label>
-                            <div class="flex items-center gap-4 bg-white/5 border border-white/10 rounded-xl p-4">
-                                <div class="w-16 h-16 rounded-xl bg-slate-900/60 border border-white/10 flex items-center justify-center overflow-hidden">
+                        <i data-lucide="chevron-down" class="accordion-chevron w-4 h-4 text-white/40 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content hidden border-t border-white/5">
+                        <div class="px-4 py-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs text-white/50 mb-1">Company Name</label>
+                                    <input id="brand-name-input" type="text" class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]" placeholder="Company Name">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-white/50 mb-1">Tagline</label>
+                                    <input id="brand-tagline-input" type="text" class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)]" placeholder="Tagline">
+                                </div>
+                            </div>
+                            <div class="mt-3 flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-lg bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden">
                                     <img id="brand-logo-preview" class="brand-logo w-full h-full object-cover hidden" alt="Logo">
-                                    <i data-lucide="image" class="brand-logo-fallback w-6 h-6 text-white/40"></i>
+                                    <i data-lucide="image" class="brand-logo-fallback w-5 h-5 text-white/30"></i>
                                 </div>
-                                <div class="flex flex-col gap-2">
-                                    <input type="file" id="brand-logo-input" accept="image/*" class="hidden">
-                                    <button type="button" id="brand-logo-upload" class="text-xs bg-[var(--theme-primary)]/20 text-[var(--theme-accent)] border border-[var(--theme-primary)]/30 hover:bg-[var(--theme-primary)]/30 px-3 py-2 rounded-md transition font-medium">Upload Logo</button>
-                                    <button type="button" id="brand-logo-reset" class="text-xs text-white/40 hover:text-red-400 transition">Remove Logo</button>
+                                <input type="file" id="brand-logo-input" accept="image/*" class="hidden">
+                                <button type="button" id="brand-logo-upload" class="text-xs bg-white/10 text-white/70 hover:bg-white/20 px-3 py-1.5 rounded-lg transition">Upload Logo</button>
+                                <button type="button" id="brand-logo-reset" class="text-xs text-white/40 hover:text-red-400 transition">Remove</button>
+                                <button type="button" id="brand-save" class="ml-auto text-xs bg-[var(--theme-primary)] text-white px-4 py-1.5 rounded-lg font-medium hover:opacity-90 transition">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accordion: Auto Clock-Out Rules -->
+                <div class="accordion-item bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="accordion-header w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-[var(--theme-primary)]/20 flex items-center justify-center">
+                                <i data-lucide="clock" class="w-4 h-4 text-[var(--theme-accent)]"></i>
+                            </div>
+                            <span class="font-semibold text-white text-sm">Auto Clock-Out Rules</span>
+                        </div>
+                        <i data-lucide="chevron-down" class="accordion-chevron w-4 h-4 text-white/40 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content hidden border-t border-white/5">
+                        <div class="px-4 py-4">
+                            <p class="text-xs text-white/50 mb-3">Employees who forget to clock out will be automatically clocked out at:</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-white/5 rounded-lg p-3 border border-white/10 text-center">
+                                    <div class="text-white/40 text-xs mb-1">Mon - Sat</div>
+                                    <div class="text-lg font-mono font-bold text-blue-400">18:00</div>
+                                </div>
+                                <div class="bg-white/5 rounded-lg p-3 border border-white/10 text-center">
+                                    <div class="text-white/40 text-xs mb-1">Sunday</div>
+                                    <div class="text-lg font-mono font-bold text-amber-400">16:00</div>
                                 </div>
                             </div>
-                            <button type="button" id="brand-save" class="w-full py-3 rounded-xl font-semibold text-white btn-primary">Save Branding</button>
-                            <p class="text-[11px] text-white/40">Updates the logo and company name across the system.</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Store Hours Info -->
-                <div class="stat-card p-6 rounded-2xl">
-                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
-                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
-                            <i data-lucide="clock" class="w-5 h-5 text-[var(--theme-accent)]"></i>
-                        </div>
-                        Auto Clock-Out Rules
-                    </h3>
-                    <div class="bg-white/5 rounded-xl p-5 border border-white/10">
-                        <p class="text-sm text-white/60 mb-4">Employees who forget to clock out will be automatically clocked out at:</p>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white/5 rounded-lg p-4 border border-white/10 text-center">
-                                <div class="text-white/40 text-sm mb-2">Monday - Saturday</div>
-                                <div class="text-2xl font-mono font-bold text-blue-400">18:00</div>
+                <!-- Accordion: Data & Cloud Storage -->
+                <div class="accordion-item bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="accordion-header w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/5 transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-[var(--theme-primary)]/20 flex items-center justify-center">
+                                <i data-lucide="cloud-cog" class="w-4 h-4 text-[var(--theme-accent)]"></i>
                             </div>
-                            <div class="bg-white/5 rounded-lg p-4 border border-white/10 text-center">
-                                <div class="text-white/40 text-sm mb-2">Sunday</div>
-                                <div class="text-2xl font-mono font-bold text-amber-400">16:00</div>
+                            <span class="font-semibold text-white text-sm">Data & Cloud Storage</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="firebase-status-badge" class="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/50">Disconnected</span>
+                            <i data-lucide="chevron-down" class="accordion-chevron w-4 h-4 text-white/40 transition-transform"></i>
+                        </div>
+                    </button>
+                    <div class="accordion-content hidden border-t border-white/5">
+                        <div class="px-4 py-4">
+                            <!-- Firebase Config -->
+                            <div class="mb-4">
+                                <label class="block text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">Firebase Configuration</label>
+                                <textarea id="fb-config-json" rows="4" class="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[var(--theme-accent)] font-mono text-xs mb-2" placeholder='Paste your Firebase config JSON here...'></textarea>
+                                <div class="flex gap-2">
+                                    <button onclick="app.saveFirebaseConfig()" class="flex-1 py-1.5 bg-[var(--theme-primary)] text-white rounded-lg text-xs font-medium hover:opacity-90 transition">
+                                        Save & Connect
+                                    </button>
+                                    <button onclick="app.clearFirebaseConfig()" class="py-1.5 px-3 border border-red-500/20 text-red-400 bg-red-500/10 rounded-lg hover:bg-red-500/20 transition text-xs">
+                                        Disconnect
+                                    </button>
+                                </div>
+                                <p id="firebase-status" class="text-[10px] text-center mt-1 text-white/40">Status: Disconnected</p>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Database Actions -->
-                <div class="stat-card p-6 rounded-2xl">
-                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
-                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
-                            <i data-lucide="database" class="w-5 h-5 text-[var(--theme-accent)]"></i>
-                        </div>
-                        Data Management
-                    </h3>
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <button onclick="app.clearHistory()" class="flex-1 py-4 px-6 border border-red-500/20 bg-red-500/10 text-red-400 rounded-xl hover:bg-red-500/20 transition flex items-center justify-center gap-3 font-medium">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                            Clear All History
-                        </button>
-                        <button onclick="if(confirm('Reset all data to factory defaults? This will delete all employees and history.')){localStorage.clear(); location.reload();}" class="flex-1 py-4 px-6 border border-white/10 bg-white/5 text-white/70 rounded-xl hover:bg-white/10 hover:text-white transition flex items-center justify-center gap-3 font-medium">
-                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                            Factory Reset
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Firebase Configuration -->
-                <div class="stat-card p-6 rounded-2xl">
-                    <h3 class="text-lg font-bold text-white mb-5 flex items-center">
-                        <div class="w-10 h-10 rounded-xl bg-[var(--theme-primary)]/20 flex items-center justify-center mr-3">
-                            <i data-lucide="cloud" class="w-5 h-5 text-[var(--theme-accent)]"></i>
-                        </div>
-                        Cloud Storage (Firebase)
-                    </h3>
-                    <p class="text-sm text-white/60 mb-4">Connect to a Firebase Realtime Database to sync data across devices. Paste your Firebase config JSON below. Leave blank to use local storage only.</p>
-                    
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">Configuration Object (JSON)</label>
-                            <textarea id="fb-config-json" rows="8" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)] focus:border-transparent transition font-mono text-sm" placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "project-id.firebaseapp.com",
-  "projectId": "project-id",
-  "databaseURL": "https://project-id-default-rtdb.firebaseio.com",
-  "storageBucket": "project-id.appspot.com",
-  "appId": "1:123456789:web:..."
-}'></textarea>
-                            <p class="text-xs text-white/30 mt-2">Paste the firebaseConfig object from your Firebase Console. Supports both JSON and JavaScript object notation.</p>
-                        </div>
-                        <div class="flex gap-3">
-                            <button onclick="app.saveFirebaseConfig()" class="flex-1 py-3 px-6 bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] text-white rounded-xl shadow-lg transition font-bold hover:shadow-xl hover:-translate-y-1">
-                                Save & Connect
-                            </button>
-                            <button onclick="app.clearFirebaseConfig()" class="px-6 py-3 border border-red-500/20 text-red-400 bg-red-500/10 rounded-xl hover:bg-red-500/20 transition font-medium">
-                                Disconnect
-                            </button>
-                        </div>
-                        <div id="firebase-status" class="text-xs text-center pt-2 font-medium text-white/40">
-                            Status: Disconnected (Using Local Storage)
+                            
+                            <!-- Divider -->
+                            <div class="border-t border-white/5 my-4"></div>
+                            
+                            <!-- Data Management -->
+                            <div>
+                                <label class="block text-xs font-semibold text-white/70 uppercase tracking-wider mb-2">Data Management</label>
+                                <div class="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 mb-2 flex items-center gap-2">
+                                    <i data-lucide="alert-triangle" class="w-3 h-3 text-amber-400 flex-shrink-0"></i>
+                                    <p class="text-[10px] text-amber-200/80">Actions affect local & cloud data.</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="app.clearHistory()" class="flex-1 py-2 px-3 border border-white/10 bg-white/5 text-white/70 rounded-lg hover:bg-white/10 transition flex items-center justify-center gap-2 text-xs font-medium">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        Clear History
+                                    </button>
+                                    <button onclick="app.factoryReset()" class="flex-1 py-2 px-3 border border-white/10 bg-white/5 text-white/70 rounded-lg hover:bg-white/10 transition flex items-center justify-center gap-2 text-xs font-medium">
+                                        <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                                        Factory Reset
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1281,6 +1340,154 @@
                 db: null,
                 isFirebaseConnected: false
             },
+
+            // ==========================================
+            // UI: TOASTS + MODALS (replace alert/confirm)
+            // ==========================================
+
+            uiToast: function({ title = '', message = '', type = 'info', timeout = 3200 } = {}) {
+                const container = document.getElementById('app-toast-container');
+                if (!container) return;
+
+                const colors = {
+                    info:  { bg: 'bg-slate-900/90', ring: 'ring-white/10', icon: 'info' },
+                    success:{ bg: 'bg-emerald-900/80', ring: 'ring-emerald-500/20', icon: 'check-circle' },
+                    warning:{ bg: 'bg-amber-900/80', ring: 'ring-amber-500/20', icon: 'alert-triangle' },
+                    error: { bg: 'bg-red-900/80', ring: 'ring-red-500/20', icon: 'x-circle' }
+                };
+                const c = colors[type] || colors.info;
+
+                const toast = document.createElement('div');
+                toast.className = `toast-enter ${c.bg} ring-1 ${c.ring} text-white shadow-2xl rounded-2xl px-4 py-3 w-[320px]`;
+                toast.innerHTML = `
+                    <div class="flex gap-3 items-start">
+                        <div class="mt-0.5 w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="${c.icon}" class="w-5 h-5"></i>
+                        </div>
+                        <div class="min-w-0">
+                            ${title ? `<div class="text-sm font-semibold leading-5">${title}</div>` : ''}
+                            ${message ? `<div class="text-xs text-white/70 leading-5 mt-0.5 break-words">${message}</div>` : ''}
+                        </div>
+                        <button class="ml-auto text-white/50 hover:text-white transition" aria-label="Close">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(toast);
+                lucide.createIcons();
+
+                const closeBtn = toast.querySelector('button');
+                const remove = () => {
+                    toast.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-6px)';
+                    setTimeout(() => toast.remove(), 180);
+                };
+                if (closeBtn) closeBtn.onclick = remove;
+
+                if (timeout && timeout > 0) {
+                    setTimeout(remove, timeout);
+                }
+            },
+
+            uiOpenModal: function(html) {
+                const modal = document.getElementById('app-modal');
+                const panel = document.getElementById('app-modal-panel');
+                const backdrop = document.getElementById('app-modal-backdrop');
+                if (!modal || !panel || !backdrop) return () => {};
+
+                panel.innerHTML = html;
+                modal.classList.remove('hidden');
+                lucide.createIcons();
+
+                const onKey = (e) => {
+                    if (e.key === 'Escape') {
+                        cleanup();
+                    }
+                };
+
+                const cleanup = () => {
+                    modal.classList.add('hidden');
+                    panel.innerHTML = '';
+                    backdrop.onclick = null;
+                    document.removeEventListener('keydown', onKey);
+                };
+
+                backdrop.onclick = cleanup;
+                document.addEventListener('keydown', onKey);
+
+                return cleanup;
+            },
+
+            uiAlert: function({ title = 'Notice', message = '', buttonText = 'OK' } = {}) {
+                return new Promise((resolve) => {
+                    const cleanup = this.uiOpenModal(`
+                        <div class="p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                    <i data-lucide="info" class="w-5 h-5 text-white/80"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-white font-semibold text-base">${title}</div>
+                                    <div class="text-white/70 text-sm mt-1 leading-6">${message}</div>
+                                </div>
+                            </div>
+                            <div class="mt-5 flex justify-end">
+                                <button id="app-modal-ok" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition">${buttonText}</button>
+                            </div>
+                        </div>
+                    `);
+
+                    const ok = document.getElementById('app-modal-ok');
+                    if (ok) {
+                        ok.onclick = () => {
+                            cleanup();
+                            resolve();
+                        };
+                    } else {
+                        cleanup();
+                        resolve();
+                    }
+                });
+            },
+
+            uiConfirm: function({ title = 'Confirm', message = '', confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = {}) {
+                return new Promise((resolve) => {
+                    const confirmClass = danger
+                        ? 'bg-red-500/20 hover:bg-red-500/30 text-red-100 border border-red-500/30'
+                        : 'btn-primary hover:opacity-90 text-white border border-white/10';
+
+                    const cleanup = this.uiOpenModal(`
+                        <div class="p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                                    <i data-lucide="help-circle" class="w-5 h-5 text-white/80"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-white font-semibold text-base">${title}</div>
+                                    <div class="text-white/70 text-sm mt-1 leading-6 whitespace-pre-line">${message}</div>
+                                </div>
+                            </div>
+                            <div class="mt-5 flex justify-end gap-2">
+                                <button id="app-modal-cancel" class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 font-semibold transition">${cancelText}</button>
+                                <button id="app-modal-confirm" class="px-4 py-2 rounded-xl ${confirmClass} font-semibold transition">${confirmText}</button>
+                            </div>
+                        </div>
+                    `);
+
+                    const cancel = document.getElementById('app-modal-cancel');
+                    const confirm = document.getElementById('app-modal-confirm');
+
+                    const done = (val) => {
+                        cleanup();
+                        resolve(val);
+                    };
+
+                    if (cancel) cancel.onclick = () => done(false);
+                    if (confirm) confirm.onclick = () => done(true);
+                });
+            },
             
             // ==========================================
             // INITIALIZATION
@@ -1320,65 +1527,74 @@
                 }
             },
 
-            saveFirebaseConfig: function() {
-                const jsonInput = document.getElementById('fb-config-json').value.trim();
-                
+            saveFirebaseConfig: async function() {
+                const jsonInput = document.getElementById('fb-config-json')?.value?.trim() || '';
+
                 if (!jsonInput) {
-                    alert('Please paste your Firebase configuration JSON.');
+                    await this.uiAlert({
+                        title: 'Firebase Config Required',
+                        message: 'Please paste your Firebase configuration JSON.'
+                    });
                     return;
                 }
 
                 let config;
                 try {
-                    // Try parsing as standard JSON first
                     config = JSON.parse(jsonInput);
                 } catch (e) {
                     // Try parsing as JS object notation (unquoted keys)
                     try {
-                        // Convert JS object notation to JSON by adding quotes to keys
                         const jsonFixed = jsonInput
                             .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":')
                             .replace(/'/g, '"');
                         config = JSON.parse(jsonFixed);
                     } catch (e2) {
-                        alert('Invalid configuration format. Please paste a valid JSON object.');
+                        await this.uiAlert({
+                            title: 'Invalid Firebase Config',
+                            message: 'Invalid configuration format. Please paste a valid JSON object.'
+                        });
                         return;
                     }
                 }
 
-                // Validate required fields
                 if (!config.apiKey || !config.databaseURL) {
-                    alert('Configuration must include at least "apiKey" and "databaseURL" fields.');
+                    await this.uiAlert({
+                        title: 'Missing Fields',
+                        message: 'Configuration must include at least "apiKey" and "databaseURL".'
+                    });
                     return;
                 }
 
                 this.data.firebaseConfig = config;
                 localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
-                
-                // Initialize Firebase connection
+
+                this.uiToast({ type: 'info', title: 'Connecting…', message: 'Attempting to connect to Firebase.' });
                 this.initFirebase();
-                
-                alert('Firebase configuration saved! Connecting...');
             },
 
-            clearFirebaseConfig: function() {
-                if (confirm('Disconnect from Firebase and revert to local storage?')) {
-                    localStorage.removeItem('rajani_firebase_config');
-                    this.data.firebaseConfig = null;
-                    this.data.isFirebaseConnected = false;
-                    this.data.db = null;
-                    
-                    // Reload local data
-                    this.loadData();
-                    this.updateFirebaseStatus('Disconnected (Using Local Storage)');
-                    alert('Disconnected. Now using local storage.');
-                    
-                    // Clear textarea if on settings page
-                    const jsonInput = document.getElementById('fb-config-json');
-                    if (jsonInput) {
-                        jsonInput.value = '';
-                    }
-                }
+            clearFirebaseConfig: async function() {
+                const ok = await this.uiConfirm({
+                    title: 'Disconnect Firebase?',
+                    message: 'This will disconnect cloud sync and revert to local storage on this device.',
+                    confirmText: 'Disconnect',
+                    cancelText: 'Cancel',
+                    danger: true
+                });
+                if (!ok) return;
+
+                localStorage.removeItem('rajani_firebase_config');
+                this.data.firebaseConfig = null;
+                this.data.isFirebaseConnected = false;
+                this.data.db = null;
+
+                // Reload local data
+                this.loadData();
+                this.updateFirebaseStatus('Disconnected (Using Local Storage)');
+
+                const jsonInput = document.getElementById('fb-config-json');
+                if (jsonInput) jsonInput.value = '';
+
+                this.uiToast({ type: 'success', title: 'Disconnected', message: 'Now using local storage.' });
             },
 
             initFirebase: function() {
@@ -1439,6 +1655,8 @@
 
             updateFirebaseStatus: function(msg) {
                 const el = document.getElementById('firebase-status');
+                const badge = document.getElementById('firebase-status-badge');
+                
                 if (el) {
                     el.innerText = 'Status: ' + msg;
                     if (msg.includes('Connected')) {
@@ -1447,6 +1665,19 @@
                         el.className = "text-xs text-center pt-2 font-medium text-red-400";
                     } else {
                         el.className = "text-xs text-center pt-2 font-medium text-white/40";
+                    }
+                }
+                
+                if (badge) {
+                    if (msg.includes('Connected')) {
+                        badge.textContent = 'Connected';
+                        badge.className = 'text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400';
+                    } else if (msg.includes('Error')) {
+                        badge.textContent = 'Error';
+                        badge.className = 'text-xs px-2 py-1 rounded-full bg-red-500/20 text-red-400';
+                    } else {
+                        badge.textContent = 'Disconnected';
+                        badge.className = 'text-xs px-2 py-1 rounded-full bg-white/10 text-white/50';
                     }
                 }
             },
@@ -1667,7 +1898,7 @@
                     const file = event.target.files[0];
                     if (!file) return;
                     if (!file.type.startsWith('image/')) {
-                        alert('Please upload an image file');
+                        this.uiToast({ type: 'error', title: 'Invalid file', message: 'Please upload an image file.' });
                         return;
                     }
                     const reader = new FileReader();
@@ -1715,6 +1946,7 @@
                     };
                     this.saveBranding(newBranding);
                     this.applyBranding();
+                    this.uiToast({ type: 'success', title: 'Branding saved', message: 'Updated across the system.' });
                 };
             },
 
@@ -1903,7 +2135,7 @@
                 if (!file) return;
                 
                 if (!file.type.startsWith('image/')) {
-                    alert('Please upload an image file');
+                    this.uiToast({ type: 'error', title: 'Invalid file', message: 'Please upload an image file.' });
                     return;
                 }
 
@@ -2152,6 +2384,8 @@
 
                 if (password === '1234') {
                     errorMsg.classList.add('hidden');
+                    // Always start admin on dashboard and keep Reports submenu collapsed by default
+                    this.data.adminView = 'dashboard';
                     this.navigate('admin-layout');
                 } else {
                     errorMsg.classList.remove('hidden');
@@ -2189,8 +2423,12 @@
                     const child = document.getElementById(`nav-${subView}`);
                     if (child) child.classList.add('active');
 
+                    // Only expand submenu when a reports child is active
                     this.toggleReportsMenu(true);
                 } else {
+                    // Force collapse when navigating to non-reports views
+                    this.toggleReportsMenu(false);
+
                     const activeLink = document.getElementById(`nav-${subView}`);
                     if (activeLink) activeLink.classList.add('active');
                 }
@@ -2232,9 +2470,48 @@
                         
                         if (this.data.isFirebaseConnected) {
                             this.updateFirebaseStatus('Connected to Cloud');
+                            // Update the badge in accordion header
+                            const badge = document.getElementById('firebase-status-badge');
+                            if (badge) {
+                                badge.textContent = 'Connected';
+                                badge.className = 'text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400';
+                            }
                         }
                     }
+                    
+                    // Open first accordion by default
+                    const firstAccordion = document.querySelector('.accordion-item');
+                    if (firstAccordion) {
+                        this.toggleAccordion(firstAccordion.querySelector('.accordion-header'));
+                    }
                 }, 50);
+            },
+            
+            /**
+             * Toggle accordion sections
+             */
+            toggleAccordion: function(button) {
+                const item = button.closest('.accordion-item');
+                const content = item.querySelector('.accordion-content');
+                const isOpen = item.classList.contains('open');
+                
+                // Close all accordions (optional - remove if you want multiple open)
+                // document.querySelectorAll('.accordion-item').forEach(acc => {
+                //     acc.classList.remove('open');
+                //     acc.querySelector('.accordion-content').classList.add('hidden');
+                // });
+                
+                // Toggle current accordion
+                if (isOpen) {
+                    item.classList.remove('open');
+                    content.classList.add('hidden');
+                } else {
+                    item.classList.add('open');
+                    content.classList.remove('hidden');
+                }
+                
+                // Re-render icons
+                lucide.createIcons();
             },
 
             // ==========================================
@@ -2543,12 +2820,20 @@
                 this.openEmployeeModal(true, id);
             },
 
-            deleteEmployee: function(id) {
-                if(confirm('Are you sure you want to delete this employee? History records will remain.')) {
-                    this.data.employees = this.data.employees.filter(e => e.id !== id);
-                    this.saveData();
-                    this.renderAdminEmployees();
-                }
+            deleteEmployee: async function(id) {
+                const ok = await this.uiConfirm({
+                    title: 'Delete employee?',
+                    message: 'This will remove the employee profile.\nHistory records will remain.',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel',
+                    danger: true
+                });
+                if (!ok) return;
+
+                this.data.employees = this.data.employees.filter(e => e.id !== id);
+                this.saveData();
+                this.renderAdminEmployees();
+                this.uiToast({ type: 'success', title: 'Employee deleted' });
             },
 
             // ==========================================
@@ -2901,14 +3186,104 @@
             },
             
             /**
-             * Clear all history records
+             * Clear all history records (localStorage + Firebase)
              */
-            clearHistory: function() {
-                if(confirm("Are you sure you want to clear the entire timesheet history? This cannot be undone.")) {
-                    this.data.history = [];
-                    this.saveData();
+            clearHistory: async function() {
+                const isFirebaseConnected = this.data.isFirebaseConnected;
+                const message = isFirebaseConnected 
+                    ? "This will delete ALL history from BOTH local storage AND Firebase cloud.\n\nThis cannot be undone."
+                    : "This will delete ALL history from this device.\n\nThis cannot be undone.";
+
+                const ok = await this.uiConfirm({
+                    title: 'Clear History',
+                    message,
+                    confirmText: 'Clear',
+                    cancelText: 'Cancel',
+                    danger: true
+                });
+                if (!ok) return;
+
+                this.data.history = [];
+                // Reset employee lastAction timestamps
+                this.data.employees.forEach(emp => {
+                    emp.status = 'out';
+                    emp.lastAction = null;
+                });
+
+                this.saveData(); // saves to local + firebase when connected
+
+                this.uiToast({
+                    type: 'success',
+                    title: 'History cleared',
+                    message: isFirebaseConnected ? 'Cleared from Local + Cloud.' : 'Cleared from Local storage.'
+                });
+
+                // Refresh current view
+                if (this.data.adminView === 'reports-activity') {
                     this.renderAdminReportsActivity();
+                } else if (this.data.adminView === 'dashboard') {
+                    this.renderAdminDashboard();
                 }
+            },
+
+            /**
+             * Factory Reset - Clear all data and restore defaults (localStorage + Firebase)
+             */
+            factoryReset: async function() {
+                const isFirebaseConnected = this.data.isFirebaseConnected;
+
+                const message = isFirebaseConnected
+                    ? "This will delete ALL data:\n• Employees\n• Timesheet history\n• Branding\n• Theme\n\nIt will clear BOTH Local + Cloud.\n\nContinue?"
+                    : "This will delete ALL data on this device:\n• Employees\n• Timesheet history\n• Branding\n• Theme\n\nContinue?";
+
+                const ok = await this.uiConfirm({
+                    title: 'Factory Reset',
+                    message,
+                    confirmText: 'Reset',
+                    cancelText: 'Cancel',
+                    danger: true
+                });
+                if (!ok) return;
+
+                // Clear Firebase data first if connected
+                if (isFirebaseConnected && this.data.db) {
+                    try {
+                        await this.data.db.ref('rajani_data').remove();
+                        this.uiToast({ type: 'success', title: 'Cloud cleared', message: 'Firebase data removed.' });
+                    } catch (error) {
+                        console.error('Error clearing Firebase:', error);
+                        await this.uiAlert({
+                            title: 'Cloud Clear Failed',
+                            message: 'Could not clear Firebase data. Please check your connection/rules and try again.'
+                        });
+                        return;
+                    }
+                }
+
+                await this.completeFactoryReset();
+            },
+
+            /**
+             * Complete the factory reset after Firebase is cleared
+             */
+            completeFactoryReset: async function() {
+                // Keep Firebase config so user doesn't have to re-enter it
+                const firebaseConfig = localStorage.getItem('rajani_firebase_config');
+
+                // Clear all localStorage
+                localStorage.clear();
+
+                // Restore Firebase config if it existed
+                if (firebaseConfig) {
+                    localStorage.setItem('rajani_firebase_config', firebaseConfig);
+                }
+
+                await this.uiAlert({
+                    title: 'Factory reset complete',
+                    message: 'The page will now reload to apply default settings.'
+                });
+
+                location.reload();
             },
 
             // ==========================================
@@ -3012,7 +3387,7 @@
 
                 // Activity Log Export
                 if (this.data.history.length === 0) {
-                    alert("No data to export");
+                    this.uiToast({ type: 'warning', title: 'Nothing to export', message: 'No activity records found.' });
                     return;
                 }
 

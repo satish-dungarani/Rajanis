@@ -1,0 +1,1973 @@
+<!DOCTYPE html>
+<!--
+    =====================================================
+    RAJANI SUPERSTORE LTD - TIME SHEET MANAGEMENT SYSTEM
+    =====================================================
+    VERSION: 1.0.1
+    DATE: Stable Release
+    
+    FEATURES:
+    - Dark Theme UI
+    - Employee Portal (Clock In/Out)
+    - Admin Panel (Dashboard, Employees, Reports, Settings)
+    - Firebase Cloud Sync
+    - Factory Reset (Local + Cloud wipe)
+    - Professional Modal/Toast notifications
+    
+    RESTORE POINT: This is the stable version after Factory Reset fix.
+    Keep a backup of this file as "index-v1.0.1.html"
+    =====================================================
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rajani Superstore Ltd - Time Sheet Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --theme-primary: #4f46e5;
+            --theme-primary-hover: #4338ca;
+            --theme-secondary: #0f172a;
+            --theme-accent: #3b82f6;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card-light {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+        .sidebar-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border-left: 3px solid var(--theme-accent);
+        }
+        .sidebar-sublink.active {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .emp-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .emp-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .input-dark {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+        .input-dark:focus {
+            outline: none;
+            border-color: var(--theme-accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .input-dark::placeholder { color: rgba(255, 255, 255, 0.4); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent));
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .table-dark th { background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); }
+        .table-dark td { color: rgba(255, 255, 255, 0.9); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .table-dark tr:hover td { background: rgba(255, 255, 255, 0.03); }
+        .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-gray { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); }
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .accordion-content.open { max-height: 1000px; }
+        .modal-overlay { animation: modalFadeIn 0.2s ease-out; }
+        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-panel { animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: scale(0.95) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .toast { animation: toastSlideIn 0.3s ease-out; }
+        @keyframes toastSlideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body class="text-white">
+
+    <div id="app-root" class="min-h-screen"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="fixed inset-0 z-[9998] hidden">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm modal-overlay"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div id="modal-content" class="modal-panel"></div>
+        </div>
+    </div>
+
+    <!-- HOME -->
+    <template id="view-home">
+        <div class="min-h-screen flex flex-col fade-in relative overflow-hidden">
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute -top-40 -left-40 w-96 h-96 bg-[var(--theme-primary)] rounded-full blur-3xl opacity-20"></div>
+                <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[var(--theme-accent)] rounded-full blur-3xl opacity-20"></div>
+            </div>
+            <header class="relative z-10 p-6 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div id="home-logo-container" class="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center shadow-lg">
+                        <i data-lucide="shopping-bag" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 id="home-brand-name" class="text-xl font-bold">Rajani Superstore</h1>
+                        <p id="home-brand-tagline" class="text-xs text-white/50">Time Management</p>
+                    </div>
+                </div>
+                <div id="home-clock" class="font-mono text-lg bg-white/10 px-4 py-2 rounded-lg">--:--</div>
+            </header>
+            <main class="relative z-10 flex-grow flex flex-col items-center justify-center p-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-medium mb-2 text-white/70">Welcome To</h2>
+                    <h1 id="home-welcome-brand" class="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-[var(--theme-accent)] via-white to-[var(--theme-primary)] bg-clip-text text-transparent">Rajani Superstore</h1>
+                    <p class="text-white/50 text-lg">Select your portal to continue</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+                    <button onclick="app.enterEmployeePortal()" class="group glass-card p-8 rounded-2xl text-left hover:border-[var(--theme-accent)] transition-all duration-300">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center mb-6 group-hover:from-blue-500 group-hover:to-blue-600 transition-all">
+                            <i data-lucide="users" class="w-8 h-8 text-blue-400 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">Employee Portal</h3>
+                        <p class="text-white/50">Clock in and out for your shift</p>
+                    </button>
+                    <button onclick="app.navigate('admin-login')" class="group glass-card p-8 rounded-2xl text-left hover:border-[var(--theme-primary)] transition-all duration-300">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 flex items-center justify-center mb-6 group-hover:from-indigo-500 group-hover:to-purple-600 transition-all">
+                            <i data-lucide="shield" class="w-8 h-8 text-indigo-400 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">Admin Console</h3>
+                        <p class="text-white/50">Manage staff and view reports</p>
+                    </button>
+                </div>
+            </main>
+            <footer class="relative z-10 p-6 text-center text-white/30 text-sm">
+                © <span id="home-year"></span> <span id="home-footer-brand">Rajani Superstore Ltd</span>. All rights reserved.
+            </footer>
+        </div>
+    </template>
+
+    <!-- EMPLOYEE LIST -->
+    <template id="view-employee-list">
+        <div class="min-h-screen flex flex-col fade-in">
+            <header class="p-6 flex items-center gap-4">
+                <button onclick="app.navigate('home')" class="p-2 rounded-lg hover:bg-white/10 transition">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                </button>
+                <div class="flex-grow">
+                    <h1 class="text-2xl font-bold">Select Profile</h1>
+                    <p class="text-white/50 text-sm">Who are you?</p>
+                </div>
+            </header>
+            <div class="px-6 mb-6">
+                <div class="relative max-w-md mx-auto">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40"></i>
+                    <input type="text" id="emp-search" placeholder="Search by name or role..." class="w-full input-dark rounded-xl py-3 pl-12 pr-4" onkeyup="app.filterEmployeeCards()">
+                </div>
+            </div>
+            <main class="flex-grow px-6 pb-6 overflow-auto">
+                <div id="employee-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"></div>
+                <p id="no-employees-msg" class="hidden text-center text-white/40 py-12">No employees found</p>
+            </main>
+        </div>
+    </template>
+
+    <!-- EMPLOYEE ACTION -->
+    <template id="view-employee-action">
+        <div class="min-h-screen flex flex-col fade-in relative">
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[var(--theme-primary)] rounded-full blur-3xl opacity-10"></div>
+            </div>
+            <header class="relative z-10 p-6">
+                <button onclick="app.navigate('employee-list')" class="flex items-center gap-2 text-white/60 hover:text-white transition">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    <span>Back to Profiles</span>
+                </button>
+            </header>
+            <main class="relative z-10 flex-grow flex items-center justify-center p-6">
+                <div class="glass-card rounded-3xl p-8 w-full max-w-sm text-center">
+                    <div class="relative inline-block mb-6">
+                        <div class="w-32 h-32 rounded-full p-1 bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)]">
+                            <img id="action-photo" src="" class="w-full h-full rounded-full object-cover bg-slate-800">
+                        </div>
+                        <div id="action-status-dot" class="absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-slate-800"></div>
+                    </div>
+                    <h2 id="action-name" class="text-2xl font-bold mb-1">Employee Name</h2>
+                    <p id="action-role" class="text-white/50 mb-6">Role</p>
+                    <div class="glass-card-light rounded-xl p-4 mb-6 text-left">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-white/50 text-sm">Status</span>
+                            <span id="action-status-badge" class="px-3 py-1 rounded-full text-xs font-bold">--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-white/50 text-sm">Last Activity</span>
+                            <span id="action-last-activity" class="text-sm font-mono">--</span>
+                        </div>
+                    </div>
+                    <button id="action-btn" class="w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95"></button>
+                    <div class="mt-6 flex items-center justify-center gap-2 text-white/40">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        <span id="action-live-clock" class="font-mono">--:--:--</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </template>
+
+    <!-- ADMIN LOGIN -->
+    <template id="view-admin-login">
+        <div class="min-h-screen flex items-center justify-center p-6 fade-in">
+            <div class="glass-card rounded-2xl w-full max-w-sm overflow-hidden">
+                <div class="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] p-8 text-center">
+                    <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="shield-check" class="w-8 h-8"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold">Admin Access</h2>
+                    <p class="text-white/70 text-sm mt-1">Enter your credentials</p>
+                </div>
+                <form onsubmit="app.handleAdminLogin(event)" class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-white/60 text-sm mb-2">Password</label>
+                        <input type="password" id="admin-password" class="w-full input-dark rounded-lg px-4 py-3" placeholder="Enter password">
+                    </div>
+                    <p id="login-error" class="text-red-400 text-sm mb-4 hidden">Incorrect password</p>
+                    <button type="submit" class="w-full btn-primary py-3 rounded-lg font-bold">Login</button>
+                    <button type="button" onclick="app.navigate('home')" class="w-full mt-3 py-2 text-white/50 hover:text-white transition">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </template>
+
+    <!-- ADMIN LAYOUT -->
+    <template id="view-admin-layout">
+        <div class="min-h-screen flex">
+            <!-- Sidebar -->
+            <aside id="admin-sidebar" class="w-64 bg-slate-900 border-r border-white/10 flex-col hidden md:flex">
+                <div class="p-6 border-b border-white/10">
+                    <div class="flex items-center gap-3">
+                        <div id="sidebar-logo" class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center">
+                            <i data-lucide="box" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h1 id="sidebar-brand" class="font-bold">Rajani Admin</h1>
+                            <p class="text-white/40 text-xs">Management System</p>
+                        </div>
+                    </div>
+                </div>
+                <nav class="flex-grow p-4 space-y-1">
+                    <button onclick="app.loadAdminView('dashboard')" id="nav-dashboard" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="app.loadAdminView('employees')" id="nav-employees" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                        <span>Employees</span>
+                    </button>
+                    <div>
+                        <button onclick="app.toggleReportsMenu()" id="nav-reports" class="sidebar-link w-full flex items-center justify-between px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                            <span class="flex items-center gap-3">
+                                <i data-lucide="file-text" class="w-5 h-5"></i>
+                                <span>Reports</span>
+                            </span>
+                            <i id="reports-chevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                        </button>
+                        <div id="reports-submenu" class="ml-4 mt-1 space-y-1 hidden">
+                            <button onclick="app.loadAdminView('reports-activity')" id="nav-reports-activity" class="sidebar-sublink w-full flex items-center gap-3 px-4 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition text-sm">
+                                <i data-lucide="activity" class="w-4 h-4"></i>
+                                <span>Activity Log</span>
+                            </button>
+                            <button onclick="app.loadAdminView('reports-weekly')" id="nav-reports-weekly" class="sidebar-sublink w-full flex items-center gap-3 px-4 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition text-sm">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>Weekly Report</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="app.loadAdminView('settings')" id="nav-settings" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+                <div class="p-4 border-t border-white/10">
+                    <button onclick="app.navigate('home')" class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </aside>
+            <!-- Mobile Header -->
+            <div class="flex-grow flex flex-col">
+                <header class="md:hidden p-4 bg-slate-900 border-b border-white/10 flex items-center justify-between">
+                    <span id="mobile-brand" class="font-bold">Rajani Admin</span>
+                    <button onclick="document.getElementById('admin-sidebar').classList.toggle('hidden');document.getElementById('admin-sidebar').classList.toggle('fixed');document.getElementById('admin-sidebar').classList.toggle('inset-0');document.getElementById('admin-sidebar').classList.toggle('z-50');" class="p-2 hover:bg-white/10 rounded-lg">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </header>
+                <!-- Content -->
+                <main id="admin-content" class="flex-grow p-6 overflow-auto custom-scrollbar"></main>
+            </div>
+        </div>
+    </template>
+
+    <!-- DASHBOARD -->
+    <template id="subview-dashboard">
+        <div class="fade-in max-w-6xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="stat-card rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white/50 text-sm">Total Staff</p>
+                            <p id="stat-total" class="text-3xl font-bold mt-1">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <i data-lucide="users" class="w-6 h-6 text-blue-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white/50 text-sm">Clocked In</p>
+                            <p id="stat-in" class="text-3xl font-bold mt-1 text-green-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                            <i data-lucide="user-check" class="w-6 h-6 text-green-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white/50 text-sm">Today's Activity</p>
+                            <p id="stat-activity" class="text-3xl font-bold mt-1 text-amber-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                            <i data-lucide="activity" class="w-6 h-6 text-amber-400"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-white/10 flex items-center justify-between">
+                    <h3 class="font-bold">Recent Activity</h3>
+                    <button onclick="app.loadAdminView('reports-activity')" class="text-sm text-[var(--theme-accent)] hover:underline">View All</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-dark">
+                        <thead>
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Action</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-recent"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- EMPLOYEES -->
+    <template id="subview-employees">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <h2 class="text-2xl font-bold">Employees</h2>
+                <div class="flex gap-3">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40"></i>
+                        <input type="text" id="admin-emp-search" placeholder="Search..." class="input-dark rounded-lg pl-10 pr-4 py-2 text-sm w-48" onkeyup="app.filterAdminEmployees()">
+                    </div>
+                    <button onclick="app.openEmployeeModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Add Employee
+                    </button>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full table-dark">
+                        <thead>
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Role</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Contact</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Off Days</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Status</th>
+                                <th class="text-right px-4 py-3 text-sm font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-emp-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Employee Modal -->
+        <div id="employee-modal" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="app.closeEmployeeModal()"></div>
+            <div class="absolute inset-0 flex items-center justify-center p-4">
+                <div class="glass-card rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+                    <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+                        <h3 id="emp-modal-title" class="font-bold">Add Employee</h3>
+                        <button onclick="app.closeEmployeeModal()" class="p-1 hover:bg-white/10 rounded-lg transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <form onsubmit="app.saveEmployee(event)" class="p-4 space-y-4 overflow-y-auto flex-grow">
+                        <input type="hidden" id="emp-id">
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Full Name *</label>
+                            <input type="text" id="emp-name" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Gender</label>
+                                <select id="emp-gender" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.updateGenderAvatar()">
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Job Role *</label>
+                                <input type="text" id="emp-role" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Mobile</label>
+                                <input type="tel" id="emp-mobile" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Email</label>
+                                <input type="email" id="emp-email" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Off Days</label>
+                            <div class="flex flex-wrap gap-2">
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-0" class="rounded"> Sun</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-1" class="rounded"> Mon</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-2" class="rounded"> Tue</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-3" class="rounded"> Wed</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-4" class="rounded"> Thu</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-5" class="rounded"> Fri</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-6" class="rounded"> Sat</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Photo (Optional)</label>
+                            <div class="flex items-center gap-4">
+                                <img id="emp-photo-preview" src="" class="w-16 h-16 rounded-full bg-slate-700 object-cover">
+                                <div class="flex-grow space-y-2">
+                                    <input type="file" id="emp-photo-file" accept="image/*" class="hidden" onchange="app.handlePhotoUpload(event)">
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('emp-photo-file').click()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Upload</button>
+                                        <button type="button" onclick="app.randomizeAvatar()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Random</button>
+                                    </div>
+                                    <p class="text-white/30 text-xs">Based on gender if not uploaded</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" onclick="app.closeEmployeeModal()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Cancel</button>
+                            <button type="submit" class="flex-1 py-2 btn-primary rounded-lg text-sm font-medium">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- REPORTS ACTIVITY -->
+    <template id="subview-reports-activity">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Activity Log</h2>
+                    <p class="text-white/50 text-sm">All clock in/out records</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.exportCSV('activity')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export CSV
+                    </button>
+                    <button onclick="app.confirmClearHistory()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
+                    <table class="w-full table-dark">
+                        <thead class="sticky top-0 bg-slate-800">
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Date</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Time</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Role</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-table"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- REPORTS WEEKLY -->
+    <template id="subview-reports-weekly">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Weekly Report</h2>
+                    <p class="text-white/50 text-sm">Hours worked by employee</p>
+                </div>
+                <button onclick="app.exportCSV('weekly')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Export CSV
+                </button>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-white/10">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="relative">
+                            <label class="block text-white/50 text-xs mb-1">Employee</label>
+                            <div class="relative">
+                                <input type="text" id="weekly-emp-search" placeholder="Search employee..." class="w-full input-dark rounded-lg px-3 py-2 text-sm" onfocus="app.showWeeklyDropdown()" onkeyup="app.filterWeeklyDropdown()">
+                                <input type="hidden" id="weekly-emp-id">
+                                <div id="weekly-emp-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg max-h-48 overflow-y-auto hidden z-50"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/50 text-xs mb-1">Week</label>
+                            <input type="date" id="weekly-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.renderWeeklyReport()">
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <button onclick="app.weeklyNav(-1)" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">← Prev</button>
+                            <button onclick="app.weeklyNav(1)" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Next →</button>
+                        </div>
+                    </div>
+                    <p id="weekly-range" class="text-white/40 text-sm mt-3"></p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-dark">
+                        <thead>
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Day</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Clock In</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Clock Out</th>
+                                <th class="text-right px-4 py-3 text-sm font-medium">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-table"></tbody>
+                        <tfoot class="border-t border-white/10">
+                            <tr>
+                                <td colspan="3" class="px-4 py-3 font-bold">Total Hours</td>
+                                <td id="weekly-total" class="px-4 py-3 text-right font-bold text-green-400">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- SETTINGS -->
+    <template id="subview-settings">
+        <div class="fade-in max-w-3xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Settings</h2>
+            <div class="space-y-3">
+                <!-- Theme -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="palette" class="w-5 h-5 text-[var(--theme-accent)]"></i> Accent Color</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10">
+                            <div class="grid grid-cols-4 gap-2 mt-3">
+                                <button onclick="app.setTheme('blue')" class="h-10 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-80 transition relative"><span id="theme-check-blue" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                                <button onclick="app.setTheme('green')" class="h-10 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-80 transition relative"><span id="theme-check-green" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                                <button onclick="app.setTheme('purple')" class="h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-80 transition relative"><span id="theme-check-purple" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                                <button onclick="app.setTheme('orange')" class="h-10 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-80 transition relative"><span id="theme-check-orange" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Branding -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="building" class="w-5 h-5 text-[var(--theme-accent)]"></i> Company Branding</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 space-y-3 mt-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">Company Name</label>
+                                    <input type="text" id="brand-name" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Rajani Superstore">
+                                </div>
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">Tagline</label>
+                                    <input type="text" id="brand-tagline" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Time Management">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Logo URL (optional)</label>
+                                <input type="text" id="brand-logo" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="https://...">
+                            </div>
+                            <button onclick="app.saveBranding()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save Branding</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Location Restriction for Clock In/Out -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="map-pin" class="w-5 h-5 text-[var(--theme-accent)]"></i> Location Restriction</span>
+                        <span id="location-restrict-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Disabled</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
+                            <!-- Enable/Disable Toggle -->
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div>
+                                    <p class="text-sm font-medium">Enable Location Restriction</p>
+                                    <p class="text-xs text-white/50">Requires BOTH IP and GPS match to access portal</p>
+                                </div>
+                                <button id="location-restrict-toggle" onclick="app.toggleLocationRestriction()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="location-toggle-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+                            <!-- Current IP Display -->
+                            <div class="p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs text-white/50">Your Current IP Address</p>
+                                    <button onclick="app.fetchCurrentIP()" class="text-xs text-[var(--theme-accent)] hover:underline">Refresh</button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <code id="current-ip-address" class="flex-1 text-sm font-mono text-cyan-400 bg-black/30 px-2 py-1.5 rounded">Loading...</code>
+                                    <button onclick="app.useCurrentIPAsStore()" class="px-2 py-1.5 rounded bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs transition" title="Use as Store IP">
+                                        <i data-lucide="check" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Store IP Address -->
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Store IP Address (Required)</label>
+                                <input type="text" id="store-ip-address" class="w-full input-dark rounded-lg px-3 py-2 text-sm font-mono" placeholder="e.g., 203.45.67.89">
+                                <p class="text-xs text-white/40 mt-1">Find your store's IP at <a href="https://whatismyip.com" target="_blank" class="text-[var(--theme-accent)] hover:underline">whatismyip.com</a></p>
+                            </div>
+                            <!-- GPS Coordinates (Required) -->
+                            <div class="p-3 rounded-lg bg-white/5">
+                                <p class="text-sm font-medium mb-2">GPS Location (Required)</p>
+                                <div class="grid grid-cols-2 gap-2 mb-2">
+                                    <div>
+                                        <label class="block text-white/40 text-xs mb-1">Latitude</label>
+                                        <input type="text" id="store-latitude" class="w-full input-dark rounded-lg px-2 py-1.5 text-xs font-mono" placeholder="e.g., 51.5074">
+                                    </div>
+                                    <div>
+                                        <label class="block text-white/40 text-xs mb-1">Longitude</label>
+                                        <input type="text" id="store-longitude" class="w-full input-dark rounded-lg px-2 py-1.5 text-xs font-mono" placeholder="e.g., -0.1278">
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="block text-white/40 text-xs mb-1">Allowed Radius (meters)</label>
+                                    <input type="number" id="store-radius" class="w-full input-dark rounded-lg px-2 py-1.5 text-xs" placeholder="e.g., 100" value="100">
+                                </div>
+                                <button onclick="app.getCurrentGPS()" class="w-full py-1.5 bg-white/10 hover:bg-white/20 rounded text-xs transition flex items-center justify-center gap-1">
+                                    <i data-lucide="crosshair" class="w-3 h-3"></i> Get Current GPS Location
+                                </button>
+                            </div>
+                            <!-- Save Button -->
+                            <button onclick="app.saveLocationSettings()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save Location Settings</button>
+                            <!-- Info Box -->
+                            <div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                <p class="text-xs text-amber-400"><i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i> Strict Mode: Employees must match BOTH IP Address AND GPS Location to access the portal.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Data & Firebase -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="database" class="w-5 h-5 text-[var(--theme-accent)]"></i> Data & Cloud Storage</span>
+                        <span id="firebase-status-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Local</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 space-y-4 mt-3">
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Firebase Config (JSON)</label>
+                                <textarea id="firebase-config" rows="4" class="w-full input-dark rounded-lg px-3 py-2 text-sm font-mono" placeholder='{"apiKey":"...","databaseURL":"..."}'></textarea>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="app.saveFirebaseConfig()" class="flex-1 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-lg text-sm transition">Connect</button>
+                                <button onclick="app.clearFirebaseConfig()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Disconnect</button>
+                            </div>
+                            <div class="border-t border-white/10 pt-4">
+                                <p class="text-white/40 text-xs mb-3">⚠️ Data actions affect both local and cloud storage</p>
+                                <div class="flex gap-2">
+                                    <button onclick="app.confirmClearHistory()" class="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition">Clear History</button>
+                                    <button onclick="app.confirmFactoryReset()" class="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition">Factory Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+    const app = {
+        data: {
+            employees: [],
+            history: [],
+            selectedEmployeeId: null,
+            adminView: 'dashboard',
+            tempPhoto: null,
+            currentTheme: 'blue',
+            db: null,
+            dbRef: null,
+            isResetting: false,
+            locationSettings: null,
+            currentIP: null
+        },
+
+        // INIT
+        init() {
+            this.loadTheme();
+            this.loadLocationSettings();
+            this.loadData();
+            this.initFirebase();
+            this.checkAutoLogout();
+            this.startClock();
+            this.navigate('home');
+        },
+
+
+
+
+
+        // LOCATION RESTRICTION
+        loadLocationSettings() {
+            const stored = localStorage.getItem('rajani_location_settings');
+            if (stored) {
+                this.data.locationSettings = JSON.parse(stored);
+            } else {
+                this.data.locationSettings = {
+                    enabled: false,
+                    storeIP: '',
+                    latitude: '',
+                    longitude: '',
+                    radius: 100
+                };
+            }
+        },
+
+        saveLocationSettings() {
+            const storeIP = document.getElementById('store-ip-address')?.value.trim() || '';
+            const latitude = document.getElementById('store-latitude')?.value.trim() || '';
+            const longitude = document.getElementById('store-longitude')?.value.trim() || '';
+            const radius = parseInt(document.getElementById('store-radius')?.value) || 100;
+
+            if (!storeIP && (!latitude || !longitude)) {
+                this.uiAlert('Please enter at least a Store IP Address or GPS coordinates.');
+                return;
+            }
+
+            this.data.locationSettings = {
+                enabled: this.data.locationSettings?.enabled || false,
+                storeIP,
+                latitude,
+                longitude,
+                radius
+            };
+
+            localStorage.setItem('rajani_location_settings', JSON.stringify(this.data.locationSettings));
+            
+            // Sync to Firebase if connected
+            if (this.data.db) {
+                this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
+            }
+
+            this.uiToast('Location settings saved!', 'success');
+        },
+
+        toggleLocationRestriction() {
+            const currentlyEnabled = this.data.locationSettings?.enabled || false;
+            
+            if (!currentlyEnabled) {
+                // Trying to enable - check if settings are configured
+                const settings = this.data.locationSettings || {};
+                if (!settings.storeIP && (!settings.latitude || !settings.longitude)) {
+                    this.uiAlert('Please configure Store IP or GPS coordinates first, then save before enabling.');
+                    return;
+                }
+                
+                this.uiConfirm('Enable Location Restriction?', 'Employees will only be able to clock in/out from the configured store location.', () => {
+                    this.data.locationSettings.enabled = true;
+                    localStorage.setItem('rajani_location_settings', JSON.stringify(this.data.locationSettings));
+                    if (this.data.db) {
+                        this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
+                    }
+                    this.updateLocationRestrictionUI();
+                    this.uiToast('Location restriction enabled', 'success');
+                });
+            } else {
+                this.data.locationSettings.enabled = false;
+                localStorage.setItem('rajani_location_settings', JSON.stringify(this.data.locationSettings));
+                if (this.data.db) {
+                    this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
+                }
+                this.updateLocationRestrictionUI();
+                this.uiToast('Location restriction disabled', 'info');
+            }
+        },
+
+        updateLocationRestrictionUI() {
+            const toggle = document.getElementById('location-restrict-toggle');
+            const knob = document.getElementById('location-toggle-knob');
+            const badge = document.getElementById('location-restrict-badge');
+            const enabled = this.data.locationSettings?.enabled || false;
+
+            if (toggle && knob) {
+                if (enabled) {
+                    toggle.classList.remove('bg-white/20');
+                    toggle.classList.add('bg-green-500');
+                    knob.style.transform = 'translateX(24px)';
+                } else {
+                    toggle.classList.add('bg-white/20');
+                    toggle.classList.remove('bg-green-500');
+                    knob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (badge) {
+                if (enabled) {
+                    badge.textContent = 'Enabled';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-green';
+                } else {
+                    badge.textContent = 'Disabled';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                }
+            }
+        },
+
+        async fetchCurrentIP() {
+            const ipEl = document.getElementById('current-ip-address');
+            if (ipEl) ipEl.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                this.data.currentIP = data.ip;
+                if (ipEl) ipEl.textContent = data.ip;
+            } catch (e) {
+                if (ipEl) ipEl.textContent = 'Failed to fetch';
+                console.error('IP fetch error:', e);
+            }
+        },
+
+        useCurrentIPAsStore() {
+            const currentIP = this.data.currentIP;
+            if (!currentIP || currentIP === 'Loading...' || currentIP === 'Failed to fetch') {
+                this.uiToast('Please wait for IP to load', 'error');
+                return;
+            }
+            const ipInput = document.getElementById('store-ip-address');
+            if (ipInput) ipInput.value = currentIP;
+            this.uiToast('Current IP set as Store IP', 'success');
+        },
+
+        getCurrentGPS() {
+            if (!navigator.geolocation) {
+                this.uiAlert('GPS is not supported in this browser.');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    document.getElementById('store-latitude').value = lat;
+                    document.getElementById('store-longitude').value = lng;
+                    this.uiToast('GPS coordinates captured!', 'success');
+                },
+                (error) => {
+                    let msg = 'Failed to get location';
+                    if (error.code === 1) msg = 'Location permission denied';
+                    else if (error.code === 2) msg = 'Location unavailable';
+                    else if (error.code === 3) msg = 'Location timeout';
+                    this.uiAlert(msg);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        },
+
+        async enterEmployeePortal() {
+            const btn = document.querySelector('button[onclick="app.enterEmployeePortal()"]');
+            const originalContent = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<div class="flex items-center gap-3"><i data-lucide="loader" class="w-8 h-8 animate-spin text-[var(--theme-accent)]"></i><div class="text-left"><h3 class="text-xl font-bold">Verifying Location...</h3><p class="text-white/50 text-sm">Please wait</p></div></div>';
+                lucide.createIcons();
+            }
+
+            try {
+                const check = await this.checkLocationRestriction();
+                if (check.allowed) {
+                    this.navigate('employee-list');
+                } else {
+                    this.uiAlert(`⛔ Access Denied\n\n${check.reason}\n\nYou must be at the store (matching IP AND GPS) to access the portal.`);
+                }
+            } catch (e) {
+                this.uiAlert('Error verifying location. Please try again.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    lucide.createIcons();
+                }
+            }
+        },
+
+        async checkLocationRestriction() {
+            const settings = this.data.locationSettings;
+            if (!settings || !settings.enabled) {
+                return { allowed: true };
+            }
+
+            let ipMatch = false;
+            let gpsMatch = false;
+            let failureReasons = [];
+
+            // 1. Check IP (Required)
+            if (settings.storeIP) {
+                try {
+                    const response = await fetch('https://api.ipify.org?format=json');
+                    const data = await response.json();
+                    const currentIP = data.ip;
+                    
+                    if (currentIP === settings.storeIP) {
+                        ipMatch = true;
+                    } else {
+                        failureReasons.push(`IP Mismatch (Yours: ${currentIP}, Store: ${settings.storeIP})`);
+                    }
+                } catch (e) {
+                    console.error('IP check failed:', e);
+                    failureReasons.push('Unable to verify IP address');
+                }
+            } else {
+                failureReasons.push('Store IP not configured');
+            }
+
+            // 2. Check GPS (Required)
+            if (settings.latitude && settings.longitude) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        if (!navigator.geolocation) {
+                            failureReasons.push('GPS not supported');
+                            resolve();
+                            return;
+                        }
+
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => {
+                                const distance = this.calculateDistance(
+                                    position.coords.latitude,
+                                    position.coords.longitude,
+                                    parseFloat(settings.latitude),
+                                    parseFloat(settings.longitude)
+                                );
+                                
+                                if (distance <= (settings.radius || 100)) {
+                                    gpsMatch = true;
+                                } else {
+                                    failureReasons.push(`GPS: You are ${Math.round(distance)}m away (max: ${settings.radius}m)`);
+                                }
+                                resolve();
+                            },
+                            (error) => {
+                                failureReasons.push('GPS Location verification failed');
+                                resolve();
+                            },
+                            { enableHighAccuracy: true, timeout: 10000 }
+                        );
+                    });
+                } catch (e) {
+                    failureReasons.push('GPS check error');
+                }
+            } else {
+                failureReasons.push('Store GPS not configured');
+            }
+
+            if (ipMatch && gpsMatch) {
+                return { allowed: true };
+            } else {
+                return { allowed: false, reason: failureReasons.join('\n') };
+            }
+        },
+
+        calculateDistance(lat1, lon1, lat2, lon2) {
+            // Haversine formula
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c; // Distance in meters
+        },
+
+        renderLocationSettings() {
+            const settings = this.data.locationSettings || {};
+            document.getElementById('store-ip-address').value = settings.storeIP || '';
+            document.getElementById('store-latitude').value = settings.latitude || '';
+            document.getElementById('store-longitude').value = settings.longitude || '';
+            document.getElementById('store-radius').value = settings.radius || 100;
+            this.updateLocationRestrictionUI();
+            this.fetchCurrentIP();
+        },
+
+        // NAVIGATION
+        navigate(view) {
+            const root = document.getElementById('app-root');
+            const template = document.getElementById(`view-${view}`);
+            if (!template) return;
+            root.innerHTML = '';
+            root.appendChild(template.content.cloneNode(true));
+            lucide.createIcons();
+            this.applyBranding();
+            if (view === 'home') {
+                document.getElementById('home-year').textContent = new Date().getFullYear();
+            }
+            if (view === 'employee-list') this.renderEmployeeList();
+            if (view === 'employee-action') this.renderEmployeeAction();
+            if (view === 'admin-layout') {
+                this.data.adminView = 'dashboard';
+                this.loadAdminView('dashboard');
+            }
+        },
+
+        loadAdminView(view) {
+            this.data.adminView = view;
+            const content = document.getElementById('admin-content');
+            const template = document.getElementById(`subview-${view}`);
+            if (!template || !content) return;
+            content.innerHTML = '';
+            content.appendChild(template.content.cloneNode(true));
+            lucide.createIcons();
+            // Update nav active state
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar-sublink').forEach(el => el.classList.remove('active'));
+            const isReportsChild = view === 'reports-activity' || view === 'reports-weekly';
+            if (isReportsChild) {
+                document.getElementById('nav-reports')?.classList.add('active');
+                document.getElementById(`nav-${view}`)?.classList.add('active');
+                this.toggleReportsMenu(true);
+            } else {
+                document.getElementById(`nav-${view}`)?.classList.add('active');
+                this.toggleReportsMenu(false);
+            }
+            // Render content
+            if (view === 'dashboard') this.renderDashboard();
+            if (view === 'employees') this.renderAdminEmployees();
+            if (view === 'reports-activity') this.renderActivityLog();
+            if (view === 'reports-weekly') this.initWeeklyReport();
+            if (view === 'settings') this.renderSettings();
+        },
+
+        toggleReportsMenu(forceState) {
+            const submenu = document.getElementById('reports-submenu');
+            const chevron = document.getElementById('reports-chevron');
+            if (!submenu) return;
+            const isHidden = submenu.classList.contains('hidden');
+            const shouldOpen = forceState !== undefined ? forceState : isHidden;
+            submenu.classList.toggle('hidden', !shouldOpen);
+            if (chevron) chevron.style.transform = shouldOpen ? 'rotate(180deg)' : '';
+        },
+
+        // DATA
+        loadData() {
+            if (localStorage.getItem('rajani_wiped') === 'true') {
+                this.data.employees = [];
+                this.data.history = [];
+                return;
+            }
+            const emp = localStorage.getItem('rajani_employees');
+            const hist = localStorage.getItem('rajani_history');
+            if (emp) {
+                this.data.employees = JSON.parse(emp);
+            } else {
+                this.data.employees = [
+                    { id: 1, name: 'Rosen', role: 'Shop Floor Assistant', gender: 'male', photo: 'https://randomuser.me/api/portraits/men/32.jpg', status: 'out', offDays: [0] },
+                    { id: 2, name: 'Solange', role: 'Shop Floor Assistant', gender: 'female', photo: 'https://randomuser.me/api/portraits/women/44.jpg', status: 'out', offDays: [0] },
+                    { id: 3, name: 'Barma', role: 'Shop Floor Assistant', gender: 'male', photo: 'https://randomuser.me/api/portraits/men/22.jpg', status: 'out', offDays: [0] },
+                    { id: 4, name: 'Sabrina', role: 'Shop Floor Assistant', gender: 'female', photo: 'https://randomuser.me/api/portraits/women/28.jpg', status: 'out', offDays: [0] },
+                    { id: 5, name: 'Harsha', role: 'Team Leader', gender: 'female', photo: 'https://randomuser.me/api/portraits/women/65.jpg', status: 'out', offDays: [0] },
+                    { id: 6, name: 'Nimit', role: 'Shop Floor Assistant', gender: 'male', photo: 'https://randomuser.me/api/portraits/men/55.jpg', status: 'out', offDays: [0] }
+                ];
+                this.saveData();
+            }
+            if (hist) this.data.history = JSON.parse(hist);
+        },
+
+        saveData() {
+            localStorage.setItem('rajani_employees', JSON.stringify(this.data.employees));
+            localStorage.setItem('rajani_history', JSON.stringify(this.data.history));
+            if (this.data.db && !this.data.isResetting) {
+                this.data.dbRef.set({ employees: this.data.employees, history: this.data.history });
+            }
+        },
+
+        // FIREBASE
+        initFirebase() {
+            const configStr = localStorage.getItem('rajani_firebase_config');
+            if (!configStr) return;
+            try {
+                const config = JSON.parse(configStr);
+                if (!firebase.apps.length) firebase.initializeApp(config);
+                this.data.db = firebase.database();
+                this.data.dbRef = this.data.db.ref('rajani_data');
+                this.data.dbRef.on('value', snapshot => {
+                    if (this.data.isResetting) return;
+                    const val = snapshot.val();
+                    if (val && val.wiped) {
+                        localStorage.setItem('rajani_wiped', 'true');
+                        this.data.employees = [];
+                        this.data.history = [];
+                    } else if (val) {
+                        if (val.employees) this.data.employees = val.employees;
+                        if (val.history) this.data.history = val.history;
+                        localStorage.removeItem('rajani_wiped');
+                    }
+                    localStorage.setItem('rajani_employees', JSON.stringify(this.data.employees));
+                    localStorage.setItem('rajani_history', JSON.stringify(this.data.history));
+                });
+                // Sync device settings from cloud
+                this.data.db.ref('rajani_device_settings').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (val) {
+                        if (val.whitelistedDevices) {
+                            this.data.whitelistedDevices = val.whitelistedDevices;
+                            localStorage.setItem('rajani_whitelisted_devices', JSON.stringify(val.whitelistedDevices));
+                        }
+                        if (val.whitelistEnabled !== undefined) {
+                            this.data.deviceWhitelistEnabled = val.whitelistEnabled;
+                            localStorage.setItem('rajani_whitelist_enabled', val.whitelistEnabled ? 'true' : 'false');
+                        }
+                    }
+                });
+                // Sync location settings from cloud
+                this.data.db.ref('rajani_location_settings').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (val) {
+                        this.data.locationSettings = val;
+                        localStorage.setItem('rajani_location_settings', JSON.stringify(val));
+                    }
+                });
+            } catch (e) {
+                console.error('Firebase init error:', e);
+            }
+        },
+
+        saveFirebaseConfig() {
+            const textarea = document.getElementById('firebase-config');
+            if (!textarea) return;
+            let configStr = textarea.value.trim();
+            if (!configStr) {
+                this.uiAlert('Please enter Firebase configuration');
+                return;
+            }
+            try {
+                configStr = configStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":');
+                const config = JSON.parse(configStr);
+                if (!config.apiKey || !config.databaseURL) {
+                    this.uiAlert('Config must include apiKey and databaseURL');
+                    return;
+                }
+                localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
+                localStorage.removeItem('rajani_wiped');
+                this.uiToast('Firebase connected! Reloading...', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } catch (e) {
+                this.uiAlert('Invalid JSON format');
+            }
+        },
+
+        clearFirebaseConfig() {
+            localStorage.removeItem('rajani_firebase_config');
+            localStorage.removeItem('rajani_wiped');
+            this.uiToast('Firebase disconnected', 'info');
+            setTimeout(() => location.reload(), 1000);
+        },
+
+        // AUTO LOGOUT
+        checkAutoLogout() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            let changed = false;
+            this.data.employees.forEach(emp => {
+                if (emp.status === 'in' && emp.lastAction) {
+                    const lastDate = new Date(emp.lastAction);
+                    const lastDay = new Date(lastDate);
+                    lastDay.setHours(0, 0, 0, 0);
+                    if (lastDay < today) {
+                        const closeHour = lastDay.getDay() === 0 ? 16 : 18;
+                        const autoTime = new Date(lastDay);
+                        autoTime.setHours(closeHour, 0, 0, 0);
+                        emp.status = 'out';
+                        emp.lastAction = autoTime.toISOString();
+                        this.data.history.unshift({
+                            employeeId: emp.id,
+                            employeeName: emp.name,
+                            employeeRole: emp.role,
+                            action: 'Auto Clock Out (System)',
+                            timestamp: autoTime.toISOString()
+                        });
+                        changed = true;
+                    }
+                }
+            });
+            if (changed) this.saveData();
+        },
+
+        // CLOCK
+        startClock() {
+            const update = () => {
+                const now = new Date();
+                const time = now.toLocaleTimeString();
+                const short = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const homeClock = document.getElementById('home-clock');
+                const actionClock = document.getElementById('action-live-clock');
+                if (homeClock) homeClock.textContent = short;
+                if (actionClock) actionClock.textContent = time;
+            };
+            update();
+            setInterval(update, 1000);
+        },
+
+        // DATE HELPERS
+        formatDate(d) {
+            const date = new Date(d);
+            const dd = String(date.getDate()).padStart(2, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const yyyy = date.getFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        },
+
+        formatTime(d) {
+            return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        },
+
+        formatDateTime(d) {
+            return this.formatDate(d) + ' ' + this.formatTime(d);
+        },
+
+        getWeekStart(d) {
+            const date = new Date(d);
+            const day = date.getDay();
+            date.setDate(date.getDate() - day);
+            date.setHours(0, 0, 0, 0);
+            return date;
+        },
+
+        // EMPLOYEE LIST
+        renderEmployeeList() {
+            const grid = document.getElementById('employee-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            this.data.employees.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center';
+                card.dataset.name = emp.name.toLowerCase();
+                card.dataset.role = emp.role.toLowerCase();
+                card.onclick = () => {
+                    this.data.selectedEmployeeId = emp.id;
+                    this.navigate('employee-action');
+                };
+                const statusClass = emp.status === 'in' ? 'bg-green-500' : 'bg-slate-600';
+                card.innerHTML = `
+                    <div class="relative inline-block mb-4">
+                        <img src="${emp.photo}" class="w-24 h-24 rounded-full object-cover mx-auto bg-slate-700">
+                        <div class="absolute bottom-1 right-1 w-5 h-5 rounded-full ${statusClass} border-2 border-slate-800"></div>
+                    </div>
+                    <h3 class="font-bold text-lg">${emp.name}</h3>
+                    <p class="text-white/50 text-sm">${emp.role}</p>
+                    <span class="inline-block mt-3 px-3 py-1 rounded-full text-xs font-medium ${emp.status === 'in' ? 'badge-green' : 'badge-gray'}">${emp.status === 'in' ? 'Clocked In' : 'Clocked Out'}</span>
+                `;
+                grid.appendChild(card);
+            });
+        },
+
+        filterEmployeeCards() {
+            const search = document.getElementById('emp-search')?.value.toLowerCase() || '';
+            const cards = document.querySelectorAll('.emp-card');
+            let found = false;
+            cards.forEach(card => {
+                const match = card.dataset.name.includes(search) || card.dataset.role.includes(search);
+                card.style.display = match ? '' : 'none';
+                if (match) found = true;
+            });
+            const msg = document.getElementById('no-employees-msg');
+            if (msg) msg.classList.toggle('hidden', found);
+        },
+
+        // EMPLOYEE ACTION
+        renderEmployeeAction() {
+            const emp = this.data.employees.find(e => e.id === this.data.selectedEmployeeId);
+            if (!emp) return;
+            document.getElementById('action-photo').src = emp.photo;
+            document.getElementById('action-name').textContent = emp.name;
+            document.getElementById('action-role').textContent = emp.role;
+            const dot = document.getElementById('action-status-dot');
+            const badge = document.getElementById('action-status-badge');
+            const btn = document.getElementById('action-btn');
+            const lastAct = document.getElementById('action-last-activity');
+            if (emp.status === 'in') {
+                dot.className = 'absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-slate-800 bg-green-500';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold badge-green';
+                badge.textContent = 'Clocked In';
+                btn.className = 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-red-500 hover:bg-red-600';
+                btn.innerHTML = '<i data-lucide="log-out" class="w-5 h-5 inline mr-2"></i>Clock Out';
+                btn.onclick = () => this.clockAction('out');
+            } else {
+                dot.className = 'absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-slate-800 bg-slate-600';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold badge-gray';
+                badge.textContent = 'Clocked Out';
+                btn.className = 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-green-500 hover:bg-green-600';
+                btn.innerHTML = '<i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i>Clock In';
+                btn.onclick = () => this.clockAction('in');
+            }
+            lastAct.textContent = emp.lastAction ? this.formatDateTime(emp.lastAction) : 'No activity';
+            lucide.createIcons();
+        },
+
+        async clockAction(type) {
+            const emp = this.data.employees.find(e => e.id === this.data.selectedEmployeeId);
+            if (!emp) return;
+
+            const btn = document.getElementById('action-btn');
+            
+            // Check location restriction
+            if (this.data.locationSettings?.enabled) {
+                btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 inline mr-2 animate-spin"></i>Verifying Location...';
+                btn.disabled = true;
+                btn.className = 'w-full py-4 rounded-xl font-bold text-lg bg-slate-600 cursor-wait';
+                lucide.createIcons();
+
+                const locationCheck = await this.checkLocationRestriction();
+                
+                if (!locationCheck.allowed) {
+                    btn.innerHTML = type === 'in' ? '<i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i>Clock In' : '<i data-lucide="log-out" class="w-5 h-5 inline mr-2"></i>Clock Out';
+                    btn.disabled = false;
+                    btn.className = type === 'in' 
+                        ? 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-green-500 hover:bg-green-600'
+                        : 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-red-500 hover:bg-red-600';
+                    btn.onclick = () => this.clockAction(type);
+                    lucide.createIcons();
+                    
+                    this.uiAlert(`⛔ Clock ${type === 'in' ? 'In' : 'Out'} Denied\n\n${locationCheck.reason}\n\nYou must be at the store to clock ${type}.`);
+                    return;
+                }
+            }
+
+            const now = new Date().toISOString();
+            emp.status = type;
+            emp.lastAction = now;
+            this.data.history.unshift({
+                employeeId: emp.id,
+                employeeName: emp.name,
+                employeeRole: emp.role,
+                action: type === 'in' ? 'Clocked In' : 'Clocked Out',
+                timestamp: now
+            });
+            this.saveData();
+            btn.innerHTML = type === 'in' ? '✓ Clocked In Successfully!' : '✓ Clocked Out Successfully!';
+            btn.disabled = true;
+            btn.className = 'w-full py-4 rounded-xl font-bold text-lg bg-slate-700 cursor-not-allowed';
+            setTimeout(() => this.navigate('employee-list'), 1500);
+        },
+
+        // ADMIN LOGIN
+        handleAdminLogin(e) {
+            e.preventDefault();
+            const pw = document.getElementById('admin-password').value;
+            if (pw === '1234') {
+                this.navigate('admin-layout');
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        },
+
+        // DASHBOARD
+        renderDashboard() {
+            document.getElementById('stat-total').textContent = this.data.employees.length;
+            document.getElementById('stat-in').textContent = this.data.employees.filter(e => e.status === 'in').length;
+            const today = new Date().toDateString();
+            document.getElementById('stat-activity').textContent = this.data.history.filter(h => new Date(h.timestamp).toDateString() === today).length;
+            const table = document.getElementById('dashboard-recent');
+            table.innerHTML = '';
+            this.data.history.slice(0, 5).forEach(h => {
+                const isIn = h.action.includes('In');
+                table.innerHTML += `<tr>
+                    <td class="px-4 py-3">${h.employeeName}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${isIn ? 'badge-green' : 'badge-red'}">${h.action}</span></td>
+                    <td class="px-4 py-3 text-white/50 text-sm">${this.formatDateTime(h.timestamp)}</td>
+                </tr>`;
+            });
+            if (this.data.history.length === 0) {
+                table.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-white/40">No activity yet</td></tr>';
+            }
+        },
+
+        // ADMIN EMPLOYEES
+        renderAdminEmployees() {
+            const table = document.getElementById('admin-emp-table');
+            if (!table) return;
+            table.innerHTML = '';
+            this.data.employees.forEach(emp => {
+                const offDays = (emp.offDays || []).map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ') || '-';
+                const contact = [emp.mobile ? '📱' : '', emp.email ? '📧' : ''].filter(Boolean).join(' ') || '-';
+                table.innerHTML += `<tr data-name="${emp.name.toLowerCase()}" data-role="${emp.role.toLowerCase()}">
+                    <td class="px-4 py-3"><div class="flex items-center gap-3"><img src="${emp.photo}" class="w-10 h-10 rounded-full object-cover bg-slate-700"><span>${emp.name}</span></div></td>
+                    <td class="px-4 py-3 text-white/70">${emp.role}</td>
+                    <td class="px-4 py-3 text-white/70">${contact}</td>
+                    <td class="px-4 py-3"><span class="text-xs text-white/50">${offDays}</span></td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${emp.status === 'in' ? 'badge-green' : 'badge-gray'}">${emp.status === 'in' ? 'In' : 'Out'}</span></td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="app.openEmployeeModal(${emp.id})" class="p-1 hover:bg-white/10 rounded"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                        <button onclick="app.confirmDeleteEmployee(${emp.id})" class="p-1 hover:bg-white/10 rounded text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>`;
+            });
+            lucide.createIcons();
+        },
+
+        filterAdminEmployees() {
+            const search = document.getElementById('admin-emp-search')?.value.toLowerCase() || '';
+            document.querySelectorAll('#admin-emp-table tr').forEach(row => {
+                const match = row.dataset.name?.includes(search) || row.dataset.role?.includes(search);
+                row.style.display = match ? '' : 'none';
+            });
+        },
+
+        openEmployeeModal(id = null) {
+            const modal = document.getElementById('employee-modal');
+            modal.classList.remove('hidden');
+            document.getElementById('emp-modal-title').textContent = id ? 'Edit Employee' : 'Add Employee';
+            document.getElementById('emp-id').value = id || '';
+            if (id) {
+                const emp = this.data.employees.find(e => e.id === id);
+                if (emp) {
+                    document.getElementById('emp-name').value = emp.name;
+                    document.getElementById('emp-role').value = emp.role;
+                    document.getElementById('emp-gender').value = emp.gender || '';
+                    document.getElementById('emp-mobile').value = emp.mobile || '';
+                    document.getElementById('emp-email').value = emp.email || '';
+                    document.getElementById('emp-photo-preview').src = emp.photo;
+                    this.data.tempPhoto = emp.photo;
+                    for (let i = 0; i < 7; i++) {
+                        document.getElementById(`off-${i}`).checked = (emp.offDays || []).includes(i);
+                    }
+                }
+            } else {
+                document.getElementById('emp-name').value = '';
+                document.getElementById('emp-role').value = '';
+                document.getElementById('emp-gender').value = '';
+                document.getElementById('emp-mobile').value = '';
+                document.getElementById('emp-email').value = '';
+                for (let i = 0; i < 7; i++) {
+                    document.getElementById(`off-${i}`).checked = false;
+                }
+                this.randomizeAvatar();
+            }
+        },
+
+        closeEmployeeModal() {
+            document.getElementById('employee-modal').classList.add('hidden');
+            this.data.tempPhoto = null;
+        },
+
+        saveEmployee(e) {
+            e.preventDefault();
+            const id = document.getElementById('emp-id').value;
+            const name = document.getElementById('emp-name').value.trim();
+            const role = document.getElementById('emp-role').value.trim();
+            const gender = document.getElementById('emp-gender').value;
+            const mobile = document.getElementById('emp-mobile').value.trim();
+            const email = document.getElementById('emp-email').value.trim();
+            const offDays = [];
+            for (let i = 0; i < 7; i++) {
+                if (document.getElementById(`off-${i}`).checked) offDays.push(i);
+            }
+            const photo = this.data.tempPhoto || this.getDefaultAvatar(gender);
+            if (id) {
+                const emp = this.data.employees.find(e => e.id === parseInt(id));
+                if (emp) {
+                    Object.assign(emp, { name, role, gender, mobile, email, photo, offDays });
+                }
+            } else {
+                const newId = this.data.employees.length > 0 ? Math.max(...this.data.employees.map(e => e.id)) + 1 : 1;
+                this.data.employees.push({ id: newId, name, role, gender, mobile, email, photo, offDays, status: 'out', lastAction: null });
+            }
+            this.saveData();
+            this.closeEmployeeModal();
+            this.renderAdminEmployees();
+            this.uiToast('Employee saved!', 'success');
+        },
+
+        confirmDeleteEmployee(id) {
+            const emp = this.data.employees.find(e => e.id === id);
+            this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', () => {
+                this.data.employees = this.data.employees.filter(e => e.id !== id);
+                this.saveData();
+                this.renderAdminEmployees();
+                this.uiToast('Employee deleted', 'success');
+            });
+        },
+
+        getDefaultAvatar(gender) {
+            const g = gender === 'female' ? 'women' : 'men';
+            const n = Math.floor(Math.random() * 90) + 1;
+            return `https://randomuser.me/api/portraits/${g}/${n}.jpg`;
+        },
+
+        randomizeAvatar() {
+            const gender = document.getElementById('emp-gender').value;
+            const url = this.getDefaultAvatar(gender);
+            document.getElementById('emp-photo-preview').src = url;
+            this.data.tempPhoto = url;
+        },
+
+        updateGenderAvatar() {
+            if (!document.getElementById('emp-id').value) {
+                this.randomizeAvatar();
+            }
+        },
+
+        handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const max = 200;
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > max) { h *= max / w; w = max; } }
+                    else { if (h > max) { w *= max / h; h = max; } }
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    document.getElementById('emp-photo-preview').src = dataUrl;
+                    this.data.tempPhoto = dataUrl;
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+
+        // ACTIVITY LOG
+        renderActivityLog() {
+            const table = document.getElementById('activity-table');
+            if (!table) return;
+            table.innerHTML = '';
+            if (this.data.history.length === 0) {
+                table.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-white/40">No activity records</td></tr>';
+                return;
+            }
+            this.data.history.forEach(h => {
+                const isIn = h.action.includes('In');
+                const isAuto = h.action.includes('Auto');
+                let badgeClass = isIn ? 'badge-green' : 'badge-red';
+                if (isAuto) badgeClass = 'badge-amber';
+                table.innerHTML += `<tr>
+                    <td class="px-4 py-3 text-white/70">${this.formatDate(h.timestamp)}</td>
+                    <td class="px-4 py-3 text-white/70">${this.formatTime(h.timestamp)}</td>
+                    <td class="px-4 py-3">${h.employeeName}</td>
+                    <td class="px-4 py-3 text-white/50">${h.employeeRole || '-'}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${badgeClass}">${h.action}</span></td>
+                </tr>`;
+            });
+        },
+
+        // WEEKLY REPORT
+        initWeeklyReport() {
+            const dateInput = document.getElementById('weekly-date');
+            if (dateInput) {
+                const today = new Date();
+                dateInput.value = today.toISOString().split('T')[0];
+            }
+            this.populateWeeklyDropdown();
+            if (this.data.employees.length > 0) {
+                document.getElementById('weekly-emp-id').value = this.data.employees[0].id;
+                document.getElementById('weekly-emp-search').value = this.data.employees[0].name;
+            }
+            this.renderWeeklyReport();
+        },
+
+        populateWeeklyDropdown() {
+            const dropdown = document.getElementById('weekly-emp-dropdown');
+            if (!dropdown) return;
+            dropdown.innerHTML = '';
+            this.data.employees.forEach(emp => {
+                const item = document.createElement('div');
+                item.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+                item.innerHTML = `<img src="${emp.photo}" class="w-6 h-6 rounded-full"><span>${emp.name}</span>`;
+                item.onclick = () => {
+                    document.getElementById('weekly-emp-id').value = emp.id;
+                    document.getElementById('weekly-emp-search').value = emp.name;
+                    dropdown.classList.add('hidden');
+                    this.renderWeeklyReport();
+                };
+                dropdown.appendChild(item);
+            });
+        },
+
+        showWeeklyDropdown() {
+            document.getElementById('weekly-emp-dropdown')?.classList.remove('hidden');
+        },
+
+        filterWeeklyDropdown() {
+            const search = document.getElementById('weekly-emp-search').value.toLowerCase();
+            const dropdown = document.getElementById('weekly-emp-dropdown');
+            dropdown.querySelectorAll('div').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(search) ? '' : 'none';
+            });
+            dropdown.classList.remove('hidden');
+        },
+
+        weeklyNav(dir) {
+            const input = document.getElementById('weekly-date');
+            const d = new Date(input.value);
+            d.setDate(d.getDate() + (dir * 7));
+            input.value = d.toISOString().split('T')[0];
+            this.renderWeeklyReport();
+        },
+
+        renderWeeklyReport() {
+            const empId = parseInt(document.getElementById('weekly-emp-id')?.value);
+            const dateVal = document.getElementById('weekly-date')?.value;
+            if (!empId || !dateVal) return;
+            const emp = this.data.employees.find(e => e.id === empId);
+            if (!emp) return;
+            const weekStart = this.getWeekStart(new Date(dateVal));
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            document.getElementById('weekly-range').textContent = `Week: ${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}`;
+            const table = document.getElementById('weekly-table');
+            table.innerHTML = '';
+            let totalHours = 0;
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(weekStart);
+                day.setDate(day.getDate() + i);
+                const dayStr = day.toDateString();
+                const isOff = (emp.offDays || []).includes(i);
+                const dayRecords = this.data.history.filter(h => h.employeeId === empId && new Date(h.timestamp).toDateString() === dayStr);
+                const clockIn = dayRecords.find(r => r.action === 'Clocked In');
+                const clockOut = dayRecords.find(r => r.action.includes('Out'));
+                let hours = 0;
+                let inTime = '-', outTime = '-';
+                if (clockIn && clockOut) {
+                    const inDate = new Date(clockIn.timestamp);
+                    const outDate = new Date(clockOut.timestamp);
+                    hours = (outDate - inDate) / (1000 * 60 * 60);
+                    inTime = this.formatTime(clockIn.timestamp);
+                    outTime = this.formatTime(clockOut.timestamp);
+                } else if (clockIn && !clockOut && day.toDateString() === new Date().toDateString()) {
+                    inTime = this.formatTime(clockIn.timestamp);
+                    outTime = '<span class="badge-amber px-2 py-0.5 rounded text-xs">In Progress</span>';
+                    hours = (new Date() - new Date(clockIn.timestamp)) / (1000 * 60 * 60);
+                }
+                totalHours += hours;
+                const rowClass = isOff ? 'bg-amber-500/10' : '';
+                const offBadge = isOff ? '<span class="badge-amber px-2 py-0.5 rounded text-xs ml-2">OFF</span>' : '';
+                table.innerHTML += `<tr class="${rowClass}">
+                    <td class="px-4 py-3">${days[i]}, ${this.formatDate(day)}${offBadge}</td>
+                    <td class="px-4 py-3 text-white/70">${inTime}</td>
+                    <td class="px-4 py-3 text-white/70">${outTime}</td>
+                    <td class="px-4 py-3 text-right font-mono ${hours >= 8 ? 'text-green-400' : 'text-white/70'}">${hours.toFixed(2)}</td>
+                </tr>`;
+            }
+            document.getElementById('weekly-total').textContent = totalHours.toFixed(2);
+        },
+
+        // SETTINGS
+        renderSettings() {
+            this.updateThemeChecks();
+            // Load branding
+            const branding = JSON.parse(localStorage.getItem('rajani_branding') || '{}');
+            document.getElementById('brand-name').value = branding.name || '';
+            document.getElementById('brand-tagline').value = branding.tagline || '';
+            document.getElementById('brand-logo').value = branding.logo || '';
+            // Firebase config
+            const config = localStorage.getItem('rajani_firebase_config');
+            document.getElementById('firebase-config').value = config || '';
+            // Status badge
+            const badge = document.getElementById('firebase-status-badge');
+            if (this.data.db) {
+                badge.textContent = 'Connected';
+                badge.className = 'px-2 py-0.5 rounded text-xs badge-green';
+            } else {
+                badge.textContent = 'Local Only';
+                badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+            }
+            // Device Access Control
+            document.getElementById('current-device-id').textContent = this.data.deviceId;
+            this.updateDeviceAccessUI();
+            this.renderWhitelistedDevices();
+            // Location Restriction
+            this.renderLocationSettings();
+        },
+
+        toggleAccordion(btn) {
+            const content = btn.nextElementSibling;
+            const chevron = btn.querySelector('[data-lucide="chevron-down"]');
+            content.classList.toggle('open');
+            if (chevron) chevron.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : '';
+        },
+
+        // THEME
+        loadTheme() {
+            this.data.currentTheme = localStorage.getItem('rajani_theme') || 'blue';
+            this.applyTheme();
+        },
+
+        setTheme(name) {
+            this.data.currentTheme = name;
+            localStorage.setItem('rajani_theme', name);
+            this.applyTheme();
+            this.updateThemeChecks();
+        },
+
+        applyTheme() {
+            const themes = {
+                blue: { primary: '#4f46e5', accent: '#3b82f6' },
+                green: { primary: '#059669', accent: '#10b981' },
+                purple: { primary: '#7c3aed', accent: '#a855f7' },
+                orange: { primary: '#ea580c', accent: '#f97316' }
+            };
+            const t = themes[this.data.currentTheme] || themes.blue;
+            document.documentElement.style.setProperty('--theme-primary', t.primary);
+            document.documentElement.style.setProperty('--theme-accent', t.accent);
+        },
+
+        updateThemeChecks() {
+            ['blue', 'green', 'purple', 'orange'].forEach(t => {
+                const el = document.getElementById(`theme-check-${t}`);
+                if (el) el.classList.toggle('hidden', t !== this.data.currentTheme);
+            });
+            lucide.createIcons();
+        },
+
+        // BRANDING
+        saveBranding() {
+            const branding = {
+                name: document.getElementById('brand-name').value.trim(),
+                tagline: document.getElementById('brand-tagline').value.trim(),
+                logo: document.getElementById('brand-logo').value.trim()
+            };
+            localStorage.setItem('rajani_branding', JSON.stringify(branding));
+            this.applyBranding();
+            this.uiToast('Branding saved!', 'success');
+        },
+
+        applyBranding() {
+            const branding = JSON.parse(localStorage.getItem('rajani_branding') || '{}');
+            const name = branding.name || 'Rajani Superstore';
+            const tagline = branding.tagline || 'Time Management';
+            // Home
+            const homeName = document.getElementById('home-brand-name');
+            const homeTagline = document.getElementById('home-brand-tagline');
+            const homeFooter = document.getElementById('home-footer-brand');
+            const homeWelcome = document.getElementById('home-welcome-brand');
+            if (homeName) homeName.textContent = name;
+            if (homeTagline) homeTagline.textContent = tagline;
+            if (homeFooter) homeFooter.textContent = name;
+            if (homeWelcome) homeWelcome.textContent = name;
+            // Sidebar
+            const sidebarBrand = document.getElementById('sidebar-brand');
+            const mobileBrand = document.getElementById('mobile-brand');
+            if (sidebarBrand) sidebarBrand.textContent = name;
+            if (mobileBrand) mobileBrand.textContent = name;
+            // Logo
+            if (branding.logo) {
+                const logoContainers = [document.getElementById('home-logo-container'), document.getElementById('sidebar-logo')];
+                logoContainers.forEach(el => {
+                    if (el) el.innerHTML = `<img src="${branding.logo}" class="w-full h-full object-cover rounded-lg">`;
+                });
+            }
+        },
+
+        // DATA ACTIONS
+        confirmClearHistory() {
+            this.uiConfirm('Clear All History?', 'This will delete all clock in/out records.', () => {
+                this.data.history = [];
+                this.saveData();
+                if (this.data.db) {
+                    this.data.dbRef.update({ history: [] });
+                }
+                this.uiToast('History cleared', 'success');
+                if (this.data.adminView === 'reports-activity') this.renderActivityLog();
+                if (this.data.adminView === 'dashboard') this.renderDashboard();
+            });
+        },
+
+        confirmFactoryReset() {
+            this.uiConfirm('Factory Reset?', 'This will delete ALL data including employees and history.', () => {
+                this.data.isResetting = true;
+                if (this.data.db) {
+                    this.data.dbRef.set({ employees: [], history: [], wiped: true });
+                }
+                localStorage.setItem('rajani_wiped', 'true');
+                localStorage.removeItem('rajani_employees');
+                localStorage.removeItem('rajani_history');
+                localStorage.removeItem('rajani_branding');
+                localStorage.removeItem('rajani_theme');
+                localStorage.removeItem('rajani_data_version');
+                this.uiToast('Factory reset complete. Reloading...', 'success');
+                setTimeout(() => location.reload(), 1500);
+            });
+        },
+
+        // CSV EXPORT
+        exportCSV(type) {
+            let csv = '';
+            let filename = '';
+            if (type === 'activity') {
+                if (this.data.history.length === 0) {
+                    this.uiToast('No data to export', 'error');
+                    return;
+                }
+                csv = 'Date,Time,Employee,Role,Action\n';
+                this.data.history.forEach(h => {
+                    csv += `${this.formatDate(h.timestamp)},${this.formatTime(h.timestamp)},"${h.employeeName}","${h.employeeRole || ''}",${h.action}\n`;
+                });
+                filename = 'activity_log.csv';
+            } else if (type === 'weekly') {
+                const empId = parseInt(document.getElementById('weekly-emp-id')?.value);
+                const emp = this.data.employees.find(e => e.id === empId);
+                if (!emp) return;
+                csv = `Weekly Report for ${emp.name}\n\nDay,Date,Clock In,Clock Out,Hours\n`;
+                document.querySelectorAll('#weekly-table tr').forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 4) {
+                        csv += `${cells[0].textContent},${cells[1].textContent},${cells[2].textContent},${cells[3].textContent}\n`;
+                    }
+                });
+                filename = `weekly_${emp.name.toLowerCase().replace(/\s+/g, '_')}.csv`;
+            }
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        // UI HELPERS
+        uiToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', info: 'bg-blue-500' };
+            toast.className = `toast px-4 py-3 rounded-lg shadow-lg ${colors[type] || colors.info} text-white flex items-center gap-2`;
+            const icons = { success: 'check-circle', error: 'x-circle', info: 'info' };
+            toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}" class="w-5 h-5"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 4000);
+        },
+
+        uiAlert(message) {
+            this.uiConfirm(message, null, null, true);
+        },
+
+        uiConfirm(title, message, onConfirm, alertOnly = false) {
+            const container = document.getElementById('modal-container');
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `
+                <div class="glass-card rounded-2xl p-6 w-full max-w-sm">
+                    <h3 class="text-lg font-bold mb-2">${title}</h3>
+                    ${message ? `<p class="text-white/60 text-sm mb-4">${message}</p>` : ''}
+                    <div class="flex gap-3 ${alertOnly ? '' : 'mt-4'}">
+                        ${alertOnly ? '' : '<button onclick="app.closeModal()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition">Cancel</button>'}
+                        <button onclick="app.${alertOnly ? 'closeModal' : 'confirmModal'}()" class="flex-1 py-2 ${alertOnly ? 'bg-blue-500 hover:bg-blue-600' : 'bg-red-500 hover:bg-red-600'} rounded-lg font-medium transition">${alertOnly ? 'OK' : 'Confirm'}</button>
+                    </div>
+                </div>
+            `;
+            container.classList.remove('hidden');
+            this._modalCallback = onConfirm;
+        },
+
+        closeModal() {
+            document.getElementById('modal-container').classList.add('hidden');
+            this._modalCallback = null;
+        },
+
+        confirmModal() {
+            if (this._modalCallback) this._modalCallback();
+            this.closeModal();
+        }
+    };
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('weekly-emp-dropdown');
+        const search = document.getElementById('weekly-emp-search');
+        if (dropdown && search && !dropdown.contains(e.target) && e.target !== search) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>

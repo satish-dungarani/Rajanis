@@ -3279,23 +3279,19 @@
                 if (isFirebaseConnected && this.data.db) {
                     try {
                         const resetAt = new Date().toISOString();
-                        const defaultEmployees = [
-                            { id: 1, name: "Rosen", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/32.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
-                            { id: 2, name: "Solange", role: "Shop Floor Assistant", gender: "female", photo: "https://randomuser.me/api/portraits/women/44.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
-                            { id: 3, name: "Barma", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/85.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
-                            { id: 4, name: "Sabrina", role: "Shop Floor Assistant", gender: "female", photo: "https://randomuser.me/api/portraits/women/68.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
-                            { id: 5, name: "Harsha", role: "Team Leader", gender: "female", photo: "https://randomuser.me/api/portraits/women/33.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
-                            { id: 6, name: "Nimit", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/61.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null }
-                        ];
 
+                        // Wipe cloud data completely (no employees, no history)
+                        // We write an empty snapshot (instead of remove()) to prevent other clients
+                        // from treating it as "uninitialized" and re-uploading old local data.
                         await this.data.db.ref('rajani_data').set({
-                            employees: defaultEmployees,
+                            employees: [],
                             history: [],
                             lastUpdated: resetAt,
-                            resetAt
+                            resetAt,
+                            wiped: true
                         });
 
-                        this.uiToast({ type: 'success', title: 'Cloud reset', message: 'Firebase data reset to defaults.' });
+                        this.uiToast({ type: 'success', title: 'Cloud wiped', message: 'Firebase data cleared (employees + history).' });
                     } catch (error) {
                         console.error('Error clearing Firebase:', error);
                         this.data.isResetting = false;
@@ -3317,29 +3313,35 @@
                 // Keep Firebase config so user doesn't have to re-enter it
                 const firebaseConfig = localStorage.getItem('rajani_firebase_config');
 
-                // Explicitly remove ONLY our app keys (more reliable than localStorage.clear in some environments)
-                const keysToRemove = [
-                    'rajani_employees',
-                    'rajani_history',
-                    'rajani_branding',
-                    'rajani_theme',
-                    'rajani_data_version'
-                ];
-                keysToRemove.forEach(k => localStorage.removeItem(k));
+                // Clear branding/theme/settings keys
+                localStorage.removeItem('rajani_branding');
+                localStorage.removeItem('rajani_theme');
+
+                // IMPORTANT:
+                // For a true "wipe", we must NOT remove rajani_employees/rajani_history in local-only mode,
+                // because loadData() would re-seed defaults if the keys are missing.
+                // Instead, we explicitly store empty arrays.
+                localStorage.setItem('rajani_employees', JSON.stringify([]));
+                localStorage.setItem('rajani_history', JSON.stringify([]));
+
+                // Pin the data version so loadData() accepts the stored empty arrays
+                localStorage.setItem('rajani_data_version', '1.3');
 
                 // Restore Firebase config if it existed
                 if (firebaseConfig) {
                     localStorage.setItem('rajani_firebase_config', firebaseConfig);
+                } else {
+                    localStorage.removeItem('rajani_firebase_config');
                 }
 
-                // Reset in-memory state as well (defensive; page will reload anyway)
+                // Reset in-memory state as well
                 this.data.employees = [];
                 this.data.history = [];
                 this.data.currentTheme = 'blue';
 
                 await this.uiAlert({
                     title: 'Factory reset complete',
-                    message: 'The page will now reload to apply default settings.'
+                    message: 'All data has been wiped. The page will now reload.'
                 });
 
                 location.reload();

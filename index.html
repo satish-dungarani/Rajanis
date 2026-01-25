@@ -800,18 +800,14 @@
 
         // LOCATION RESTRICTION
         loadLocationSettings() {
-            const stored = localStorage.getItem('rajani_location_settings');
-            if (stored) {
-                this.data.locationSettings = JSON.parse(stored);
-            } else {
-                this.data.locationSettings = {
-                    enabled: false,
-                    storeIP: '',
-                    latitude: '',
-                    longitude: '',
-                    radius: 100
-                };
-            }
+            // Initialize with defaults - Firebase listener will update
+            this.data.locationSettings = {
+                enabled: false,
+                storeIP: '',
+                latitude: '',
+                longitude: '',
+                radius: 100
+            };
         },
 
         saveLocationSettings() {
@@ -833,14 +829,13 @@
                 radius
             };
 
-            localStorage.setItem('rajani_location_settings', JSON.stringify(this.data.locationSettings));
-            
-            // Sync to Firebase if connected
+            // Save ONLY to Firebase
             if (this.data.db) {
                 this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
+                this.uiToast('Location settings saved!', 'success');
+            } else {
+                this.uiAlert('Cannot save - Firebase not connected');
             }
-
-            this.uiToast('Location settings saved!', 'success');
         },
 
         toggleLocationRestriction() {
@@ -856,7 +851,7 @@
                 
                 this.uiConfirm('Enable Location Restriction?', 'Employees will only be able to clock in/out from the configured store location.', () => {
                     this.data.locationSettings.enabled = true;
-                    localStorage.setItem('rajani_location_settings', JSON.stringify(this.data.locationSettings));
+                    // Save ONLY to Firebase
                     if (this.data.db) {
                         this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
                     }
@@ -865,7 +860,7 @@
                 });
             } else {
                 this.data.locationSettings.enabled = false;
-                localStorage.setItem('rajani_location_settings', JSON.stringify(this.data.locationSettings));
+                // Save ONLY to Firebase
                 if (this.data.db) {
                     this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
                 }
@@ -1142,34 +1137,20 @@
             if (chevron) chevron.style.transform = shouldOpen ? 'rotate(180deg)' : '';
         },
 
-        // DATA
+        // DATA - Firebase is the ONLY source of truth
+        // No localStorage fallback - all data comes from Firebase
         loadData() {
-            if (localStorage.getItem('rajani_wiped') === 'true') {
-                this.data.employees = [];
-                this.data.history = [];
-                return;
-            }
-            const emp = localStorage.getItem('rajani_employees');
-            const hist = localStorage.getItem('rajani_history');
-            if (emp) {
-                this.data.employees = JSON.parse(emp);
-            } else {
-                this.data.employees = [
-                    { id: 1, name: 'Rosen', role: 'Shop Floor Assistant', gender: 'male', photo: 'https://randomuser.me/api/portraits/men/32.jpg', status: 'out', offDays: [0] },
-                    { id: 2, name: 'Solange', role: 'Shop Floor Assistant', gender: 'female', photo: 'https://randomuser.me/api/portraits/women/44.jpg', status: 'out', offDays: [0] },
-                    { id: 3, name: 'Barma', role: 'Shop Floor Assistant', gender: 'male', photo: 'https://randomuser.me/api/portraits/men/22.jpg', status: 'out', offDays: [0] },
-                    { id: 4, name: 'Sabrina', role: 'Shop Floor Assistant', gender: 'female', photo: 'https://randomuser.me/api/portraits/women/28.jpg', status: 'out', offDays: [0] },
-                    { id: 5, name: 'Harsha', role: 'Team Leader', gender: 'female', photo: 'https://randomuser.me/api/portraits/women/65.jpg', status: 'out', offDays: [0] },
-                    { id: 6, name: 'Nimit', role: 'Shop Floor Assistant', gender: 'male', photo: 'https://randomuser.me/api/portraits/men/55.jpg', status: 'out', offDays: [0] }
-                ];
-                this.saveData();
-            }
-            if (hist) this.data.history = JSON.parse(hist);
+            // Data will be loaded from Firebase via the realtime listener
+            // Initialize with empty arrays - Firebase listener will populate
+            this.data.employees = [];
+            this.data.history = [];
+            
+            // If Firebase is connected but empty, it will stay empty
+            // Admin can add employees through the UI
         },
 
         saveData() {
-            localStorage.setItem('rajani_employees', JSON.stringify(this.data.employees));
-            localStorage.setItem('rajani_history', JSON.stringify(this.data.history));
+            // Save ONLY to Firebase - no localStorage
             if (this.data.db && !this.data.isResetting) {
                 this.data.dbRef.set({ employees: this.data.employees, history: this.data.history });
             }
@@ -1177,26 +1158,9 @@
 
         // FIREBASE
         initFirebase() {
-            // Try to get config: first from localStorage, then use default
-            let configStr = localStorage.getItem('rajani_firebase_config');
-            let config = null;
-            
-            if (configStr) {
-                try {
-                    config = JSON.parse(configStr);
-                } catch (e) {
-                    console.error('Invalid stored Firebase config');
-                }
-            }
-            
-            // If no stored config or invalid, use default encoded config
-            if (!config) {
-                config = this.getDefaultFirebaseConfig();
-                if (config) {
-                    // Store it for future reference
-                    localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
-                }
-            }
+            // ALWAYS use the default encoded Firebase config first
+            // This ensures ALL devices connect to the same database
+            let config = this.getDefaultFirebaseConfig();
             
             if (!config) {
                 console.error('No Firebase configuration available');
@@ -1207,46 +1171,54 @@
                 if (!firebase.apps.length) firebase.initializeApp(config);
                 this.data.db = firebase.database();
                 this.data.dbRef = this.data.db.ref('rajani_data');
+                
+                // Listen for data changes from Firebase (this is the ONLY source of truth)
                 this.data.dbRef.on('value', snapshot => {
                     if (this.data.isResetting) return;
                     const val = snapshot.val();
                     if (val && val.wiped) {
-                        localStorage.setItem('rajani_wiped', 'true');
                         this.data.employees = [];
                         this.data.history = [];
                     } else if (val) {
                         if (val.employees) this.data.employees = val.employees;
                         if (val.history) this.data.history = val.history;
-                        localStorage.removeItem('rajani_wiped');
                     }
-                    localStorage.setItem('rajani_employees', JSON.stringify(this.data.employees));
-                    localStorage.setItem('rajani_history', JSON.stringify(this.data.history));
+                    // Refresh current view only when admin layout is active
+                    const inAdmin = document.getElementById('admin-content');
+                    if (inAdmin) {
+                        if (this.data.adminView === 'dashboard') this.renderDashboard?.();
+                        if (this.data.adminView === 'employees') this.renderAdminEmployees?.();
+                        if (this.data.adminView === 'reports-activity') this.renderActivityLog?.();
+                        if (this.data.adminView === 'reports-weekly') this.initWeeklyReport?.();
+                    }
                 });
+                
                 // Sync location settings from cloud
                 this.data.db.ref('rajani_location_settings').on('value', snapshot => {
                     const val = snapshot.val();
                     if (val) {
                         this.data.locationSettings = val;
-                        localStorage.setItem('rajani_location_settings', JSON.stringify(val));
                     }
                 });
+                
                 // Sync branding from cloud
                 this.data.db.ref('rajani_branding').on('value', snapshot => {
                     const val = snapshot.val();
                     if (val) {
-                        localStorage.setItem('rajani_branding', JSON.stringify(val));
+                        this.data.branding = val;
                         this.applyBranding();
                     }
                 });
+                
                 // Sync theme from cloud
                 this.data.db.ref('rajani_theme').on('value', snapshot => {
                     const val = snapshot.val();
                     if (val) {
                         this.data.currentTheme = val;
-                        localStorage.setItem('rajani_theme', val);
                         this.applyTheme();
                     }
                 });
+                
                 console.log('Firebase connected successfully');
             } catch (e) {
                 console.error('Firebase init error:', e);
@@ -1262,18 +1234,35 @@
                 return;
             }
             try {
-                configStr = configStr.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":');
-                const config = JSON.parse(configStr);
+                // Try parsing as-is first (valid JSON)
+                let config;
+                try {
+                    config = JSON.parse(configStr);
+                } catch (e1) {
+                    // Try fixing unquoted keys (JS object notation)
+                    const fixed = configStr
+                        .replace(/(['"])?([a-zA-Z_][a-zA-Z0-9_]*)(['"])?:/g, '"$2":')
+                        .replace(/'/g, '"');
+                    config = JSON.parse(fixed);
+                }
+                
                 if (!config.apiKey || !config.databaseURL) {
                     this.uiAlert('Config must include apiKey and databaseURL');
                     return;
                 }
                 localStorage.setItem('rajani_firebase_config', JSON.stringify(config));
                 localStorage.removeItem('rajani_wiped');
+                
+                // Also save to Firebase so other devices can use it
+                if (this.data.db) {
+                    this.data.db.ref('rajani_firebase_config').set(config);
+                }
+                
                 this.uiToast('Firebase connected! Reloading...', 'success');
                 setTimeout(() => location.reload(), 1000);
             } catch (e) {
-                this.uiAlert('Invalid JSON format');
+                console.error('JSON parse error:', e);
+                this.uiAlert('Invalid JSON format. Please check your configuration.');
             }
         },
 
@@ -1484,12 +1473,20 @@
 
         // DASHBOARD
         renderDashboard() {
-            document.getElementById('stat-total').textContent = this.data.employees.length;
-            document.getElementById('stat-in').textContent = this.data.employees.filter(e => e.status === 'in').length;
+            const elTotal = document.getElementById('stat-total');
+            if (elTotal) elTotal.textContent = this.data.employees.length;
+
+            const elIn = document.getElementById('stat-in');
+            if (elIn) elIn.textContent = this.data.employees.filter(e => e.status === 'in').length;
+
             const today = new Date().toDateString();
-            document.getElementById('stat-activity').textContent = this.data.history.filter(h => new Date(h.timestamp).toDateString() === today).length;
+            const elAct = document.getElementById('stat-activity');
+            if (elAct) elAct.textContent = this.data.history.filter(h => new Date(h.timestamp).toDateString() === today).length;
+
             const table = document.getElementById('dashboard-recent');
+            if (!table) return;
             table.innerHTML = '';
+
             this.data.history.slice(0, 5).forEach(h => {
                 const isIn = h.action.includes('In');
                 table.innerHTML += `<tr>
@@ -1781,19 +1778,19 @@
         // SETTINGS
         renderSettings() {
             this.updateThemeChecks();
-            // Load branding
-            const branding = JSON.parse(localStorage.getItem('rajani_branding') || '{}');
+            // Load branding from app.data (synced from Firebase)
+            const branding = this.data.branding || {};
             document.getElementById('brand-name').value = branding.name || '';
             document.getElementById('brand-tagline').value = branding.tagline || '';
             document.getElementById('brand-logo').value = branding.logo || '';
-            // Firebase config
-            const config = localStorage.getItem('rajani_firebase_config');
+            // Firebase config - show current default config
             const configTextarea = document.getElementById('firebase-config');
             if (configTextarea) {
                 try {
-                    configTextarea.value = config ? JSON.stringify(JSON.parse(config), null, 2) : '';
+                    const config = this.getDefaultFirebaseConfig();
+                    configTextarea.value = config ? JSON.stringify(config, null, 2) : '';
                 } catch (e) {
-                    configTextarea.value = config || '';
+                    configTextarea.value = '';
                 }
             }
             // Status badge
@@ -1803,8 +1800,8 @@
                     badge.textContent = 'Connected';
                     badge.className = 'px-2 py-0.5 rounded text-xs badge-green';
                 } else {
-                    badge.textContent = 'Local Only';
-                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                    badge.textContent = 'Disconnected';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-red';
                 }
             }
             // Location Restriction
@@ -1820,14 +1817,14 @@
 
         // THEME
         loadTheme() {
-            this.data.currentTheme = localStorage.getItem('rajani_theme') || 'blue';
+            // Default theme - Firebase listener will update if different
+            this.data.currentTheme = 'blue';
             this.applyTheme();
         },
 
         setTheme(name) {
             this.data.currentTheme = name;
-            localStorage.setItem('rajani_theme', name);
-            // Sync to Firebase
+            // Save ONLY to Firebase
             if (this.data.db) {
                 this.data.db.ref('rajani_theme').set(name);
             }
@@ -1862,17 +1859,19 @@
                 tagline: document.getElementById('brand-tagline').value.trim(),
                 logo: document.getElementById('brand-logo').value.trim()
             };
-            localStorage.setItem('rajani_branding', JSON.stringify(branding));
-            // Sync to Firebase
+            this.data.branding = branding;
+            // Save ONLY to Firebase
             if (this.data.db) {
                 this.data.db.ref('rajani_branding').set(branding);
+                this.uiToast('Branding saved!', 'success');
+            } else {
+                this.uiAlert('Cannot save - Firebase not connected');
             }
             this.applyBranding();
-            this.uiToast('Branding saved!', 'success');
         },
 
         applyBranding() {
-            const branding = JSON.parse(localStorage.getItem('rajani_branding') || '{}');
+            const branding = this.data.branding || {};
             const name = branding.name || 'Rajani Superstore';
             const tagline = branding.tagline || 'Time Management';
             // Home

@@ -1338,7 +1338,10 @@
                 currentTheme: 'blue',
                 firebaseConfig: null,
                 db: null,
-                isFirebaseConnected: false
+                isFirebaseConnected: false,
+                firebaseRef: null,
+                firebaseValueListener: null,
+                isResetting: false
             },
 
             // ==========================================
@@ -1612,16 +1615,20 @@
                     
                     // Setup Listeners for Realtime Sync
                     const dbRef = this.data.db.ref('rajani_data');
-                    
-                    dbRef.on('value', (snapshot) => {
+                    this.data.firebaseRef = dbRef;
+
+                    const onValue = (snapshot) => {
+                        // During reset we ignore incoming updates to avoid re-populating state
+                        if (this.data.isResetting) return;
+
                         const val = snapshot.val();
                         if (val) {
                             if (val.employees) this.data.employees = val.employees;
                             if (val.history) this.data.history = val.history;
-                            
+
                             // Check auto logout logic on new data
                             this.checkAutoLogout();
-                            
+
                             // Re-render current view if needed
                             if (this.data.currentView === 'admin-layout') {
                                 this.loadAdminView(this.data.adminView);
@@ -1631,14 +1638,23 @@
                                 this.renderEmployeeAction();
                             }
                         } else {
-                            // If DB is empty, maybe push local data?
-                            // For now, let's keep local if remote is empty or just start fresh.
-                            // If we have local data and remote is empty, let's upload local.
-                            if (this.data.employees.length > 0) {
-                                this.saveData(); // Will push to Firebase
+                            // If DB is empty, initialize it from local defaults/cache.
+                            // IMPORTANT: We never want to re-upload stale in-memory data after a manual cloud wipe.
+                            // If we have nothing in memory yet, seed from local (which will create defaults if empty).
+                            if (this.data.employees.length === 0 && this.data.history.length === 0) {
+                                this.loadData();
+                            }
+
+                            // If after loading local defaults/cache we have something, push it to the cloud.
+                            // (This is useful for first-time connection or after a full reset.)
+                            if (this.data.employees.length > 0 || this.data.history.length > 0) {
+                                this.saveData();
                             }
                         }
-                    }, (error) => {
+                    };
+
+                    this.data.firebaseValueListener = onValue;
+                    dbRef.on('value', onValue, (error) => {
                         console.error("Firebase read failed: " + error.code);
                         this.updateFirebaseStatus('Connection Error: ' + error.code);
                         this.data.isFirebaseConnected = false;
@@ -3245,13 +3261,44 @@
                 });
                 if (!ok) return;
 
-                // Clear Firebase data first if connected
+                // Guard: stop reacting to realtime updates during reset
+                this.data.isResetting = true;
+
+                // Detach Firebase listener to avoid repopulating state after cloud wipe
+                try {
+                    if (this.data.firebaseRef && this.data.firebaseValueListener) {
+                        this.data.firebaseRef.off('value', this.data.firebaseValueListener);
+                    }
+                } catch (e) {
+                    console.warn('Failed to detach Firebase listener during reset', e);
+                }
+
+                // Clear/Reset Firebase data first if connected
+                // IMPORTANT: We write a "reset snapshot" instead of remove(), so other open devices
+                // don't see `null` and accidentally re-upload old in-memory data.
                 if (isFirebaseConnected && this.data.db) {
                     try {
-                        await this.data.db.ref('rajani_data').remove();
-                        this.uiToast({ type: 'success', title: 'Cloud cleared', message: 'Firebase data removed.' });
+                        const resetAt = new Date().toISOString();
+                        const defaultEmployees = [
+                            { id: 1, name: "Rosen", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/32.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                            { id: 2, name: "Solange", role: "Shop Floor Assistant", gender: "female", photo: "https://randomuser.me/api/portraits/women/44.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                            { id: 3, name: "Barma", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/85.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                            { id: 4, name: "Sabrina", role: "Shop Floor Assistant", gender: "female", photo: "https://randomuser.me/api/portraits/women/68.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                            { id: 5, name: "Harsha", role: "Team Leader", gender: "female", photo: "https://randomuser.me/api/portraits/women/33.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null },
+                            { id: 6, name: "Nimit", role: "Shop Floor Assistant", gender: "male", photo: "https://randomuser.me/api/portraits/men/61.jpg", mobile: "", email: "", offDays: [0], status: "out", lastAction: null }
+                        ];
+
+                        await this.data.db.ref('rajani_data').set({
+                            employees: defaultEmployees,
+                            history: [],
+                            lastUpdated: resetAt,
+                            resetAt
+                        });
+
+                        this.uiToast({ type: 'success', title: 'Cloud reset', message: 'Firebase data reset to defaults.' });
                     } catch (error) {
                         console.error('Error clearing Firebase:', error);
+                        this.data.isResetting = false;
                         await this.uiAlert({
                             title: 'Cloud Clear Failed',
                             message: 'Could not clear Firebase data. Please check your connection/rules and try again.'
@@ -3270,13 +3317,25 @@
                 // Keep Firebase config so user doesn't have to re-enter it
                 const firebaseConfig = localStorage.getItem('rajani_firebase_config');
 
-                // Clear all localStorage
-                localStorage.clear();
+                // Explicitly remove ONLY our app keys (more reliable than localStorage.clear in some environments)
+                const keysToRemove = [
+                    'rajani_employees',
+                    'rajani_history',
+                    'rajani_branding',
+                    'rajani_theme',
+                    'rajani_data_version'
+                ];
+                keysToRemove.forEach(k => localStorage.removeItem(k));
 
                 // Restore Firebase config if it existed
                 if (firebaseConfig) {
                     localStorage.setItem('rajani_firebase_config', firebaseConfig);
                 }
+
+                // Reset in-memory state as well (defensive; page will reload anyway)
+                this.data.employees = [];
+                this.data.history = [];
+                this.data.currentTheme = 'blue';
 
                 await this.uiAlert({
                     title: 'Factory reset complete',

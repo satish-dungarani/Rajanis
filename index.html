@@ -480,7 +480,7 @@
                             <label class="block text-white/60 text-xs mb-1">Full Name *</label>
                             <input type="text" id="emp-name" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-3 gap-3">
                             <div>
                                 <label class="block text-white/60 text-xs mb-1">Gender</label>
                                 <select id="emp-gender" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.updateGenderAvatar()">
@@ -489,9 +489,22 @@
                                     <option value="female">Female</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="col-span-2">
                                 <label class="block text-white/60 text-xs mb-1">Job Role *</label>
                                 <input type="text" id="emp-role" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Account Status</label>
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                <div>
+                                    <p class="text-sm font-medium">Active Employee</p>
+                                    <p class="text-xs text-white/50">Inactive employees won’t appear in Employee Portal</p>
+                                </div>
+                                <button type="button" id="emp-active-toggle" onclick="app.toggleEmpActive()" class="relative w-12 h-6 rounded-full transition-colors bg-green-500">
+                                    <span id="emp-active-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform" style="transform: translateX(24px);"></span>
+                                </button>
+                                <input type="hidden" id="emp-active" value="true">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
@@ -1402,7 +1415,8 @@
             const grid = document.getElementById('employee-grid');
             if (!grid) return;
             grid.innerHTML = '';
-            this.data.employees.forEach(emp => {
+            // Only show ACTIVE employees in Employee Portal
+            this.data.employees.filter(e => e.active !== false).forEach(emp => {
                 const card = document.createElement('div');
                 card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center';
                 card.dataset.name = emp.name.toLowerCase();
@@ -1442,6 +1456,12 @@
         renderEmployeeAction() {
             const emp = this.data.employees.find(e => e.id === this.data.selectedEmployeeId);
             if (!emp) return;
+            // If employee becomes inactive, do not allow clock screen
+            if (emp.active === false) {
+                this.uiAlert('This profile is inactive. Please contact your manager.');
+                this.navigate('employee-list');
+                return;
+            }
             document.getElementById('action-photo').src = emp.photo;
             document.getElementById('action-name').textContent = emp.name;
             document.getElementById('action-role').textContent = emp.role;
@@ -1471,6 +1491,12 @@
         async clockAction(type) {
             const emp = this.data.employees.find(e => e.id === this.data.selectedEmployeeId);
             if (!emp) return;
+            // Prevent inactive employees from clocking in/out
+            if (emp.active === false) {
+                this.uiAlert('This profile is inactive. Please contact your manager.');
+                this.navigate('employee-list');
+                return;
+            }
 
             const btn = document.getElementById('action-btn');
             
@@ -1642,6 +1668,26 @@
             modal.classList.remove('hidden');
             document.getElementById('emp-modal-title').textContent = id ? 'Edit Employee' : 'Add Employee';
             document.getElementById('emp-id').value = id || '';
+
+            // Default active = true
+            const setActiveUI = (isActive) => {
+                const toggle = document.getElementById('emp-active-toggle');
+                const knob = document.getElementById('emp-active-knob');
+                const hidden = document.getElementById('emp-active');
+                if (hidden) hidden.value = isActive ? 'true' : 'false';
+                if (toggle && knob) {
+                    if (isActive) {
+                        toggle.classList.remove('bg-white/20');
+                        toggle.classList.add('bg-green-500');
+                        knob.style.transform = 'translateX(24px)';
+                    } else {
+                        toggle.classList.add('bg-white/20');
+                        toggle.classList.remove('bg-green-500');
+                        knob.style.transform = 'translateX(0px)';
+                    }
+                }
+            };
+
             if (id) {
                 const emp = this.data.employees.find(e => e.id === id);
                 if (emp) {
@@ -1655,6 +1701,7 @@
                     for (let i = 0; i < 7; i++) {
                         document.getElementById(`off-${i}`).checked = (emp.offDays || []).includes(i);
                     }
+                    setActiveUI(emp.active !== false);
                 }
             } else {
                 document.getElementById('emp-name').value = '';
@@ -1666,6 +1713,7 @@
                     document.getElementById(`off-${i}`).checked = false;
                 }
                 this.randomizeAvatar();
+                setActiveUI(true);
             }
         },
 
@@ -1682,6 +1730,7 @@
             const gender = document.getElementById('emp-gender').value;
             const mobile = document.getElementById('emp-mobile').value.trim();
             const email = document.getElementById('emp-email').value.trim();
+            const active = (document.getElementById('emp-active')?.value || 'true') === 'true';
             const offDays = [];
             for (let i = 0; i < 7; i++) {
                 if (document.getElementById(`off-${i}`).checked) offDays.push(i);
@@ -1690,11 +1739,16 @@
             if (id) {
                 const emp = this.data.employees.find(e => e.id === parseInt(id));
                 if (emp) {
-                    Object.assign(emp, { name, role, gender, mobile, email, photo, offDays });
+                    // Keep existing data/history unchanged; only update employee record fields
+                    Object.assign(emp, { name, role, gender, mobile, email, photo, offDays, active });
+                    // If an employee is set inactive, force them to out (does not touch history)
+                    if (emp.active === false) {
+                        emp.status = 'out';
+                    }
                 }
             } else {
                 const newId = this.data.employees.length > 0 ? Math.max(...this.data.employees.map(e => e.id)) + 1 : 1;
-                this.data.employees.push({ id: newId, name, role, gender, mobile, email, photo, offDays, status: 'out', lastAction: null });
+                this.data.employees.push({ id: newId, name, role, gender, mobile, email, photo, offDays, active, status: 'out', lastAction: null });
             }
             this.saveData();
             this.closeEmployeeModal();
@@ -1753,6 +1807,26 @@
                 img.src = ev.target.result;
             };
             reader.readAsDataURL(file);
+        },
+
+        // Employee Active toggle (Admin Add/Edit)
+        toggleEmpActive() {
+            const hidden = document.getElementById('emp-active');
+            const toggle = document.getElementById('emp-active-toggle');
+            const knob = document.getElementById('emp-active-knob');
+            if (!hidden || !toggle || !knob) return;
+            const cur = hidden.value === 'true';
+            const next = !cur;
+            hidden.value = next ? 'true' : 'false';
+            if (next) {
+                toggle.classList.remove('bg-white/20');
+                toggle.classList.add('bg-green-500');
+                knob.style.transform = 'translateX(24px)';
+            } else {
+                toggle.classList.add('bg-white/20');
+                toggle.classList.remove('bg-green-500');
+                knob.style.transform = 'translateX(0px)';
+            }
         },
 
         // ACTIVITY LOG

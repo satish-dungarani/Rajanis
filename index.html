@@ -620,12 +620,18 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <div>
                     <h2 class="text-2xl font-bold">Weekly Report</h2>
-                    <p class="text-white/50 text-sm">Hours worked by employee</p>
+                    <p class="text-white/50 text-sm">Sessions (Clock In/Out) and total hours per day</p>
                 </div>
-                <button onclick="app.exportCSV('weekly')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    Export CSV
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="app.exportCSV('weekly')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export CSV
+                    </button>
+                    <button onclick="app.exportWeeklyAllEmployeesCSV()" class="px-4 py-2 btn-primary rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                        Export All Employees
+                    </button>
+                </div>
             </div>
             <div class="glass-card rounded-xl overflow-hidden">
                 <div class="p-4 border-b border-white/10">
@@ -654,15 +660,14 @@
                         <thead>
                             <tr>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Day</th>
-                                <th class="text-left px-4 py-3 text-sm font-medium">Clock In</th>
-                                <th class="text-left px-4 py-3 text-sm font-medium">Clock Out</th>
-                                <th class="text-right px-4 py-3 text-sm font-medium">Hours</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Sessions (In/Out)</th>
+                                <th class="text-right px-4 py-3 text-sm font-medium">Total Hours</th>
                             </tr>
                         </thead>
                         <tbody id="weekly-table"></tbody>
                         <tfoot class="border-t border-white/10">
                             <tr>
-                                <td colspan="3" class="px-4 py-3 font-bold">Total Hours</td>
+                                <td colspan="2" class="px-4 py-3 font-bold">Total Hours (Week)</td>
                                 <td id="weekly-total" class="px-4 py-3 text-right font-bold text-green-400">0.00</td>
                             </tr>
                         </tfoot>
@@ -1499,6 +1504,11 @@
             }
 
             const btn = document.getElementById('action-btn');
+
+            // If already in this state, ignore (prevents accidental double clicks)
+            if ((type === 'in' && emp.status === 'in') || (type === 'out' && emp.status === 'out')) {
+                return;
+            }
             
             // Check location restriction
             if (this.data.locationSettings?.enabled) {
@@ -1524,15 +1534,30 @@
             }
 
             const now = new Date().toISOString();
-            emp.status = type;
-            emp.lastAction = now;
-            this.data.history.unshift({
-                employeeId: emp.id,
-                employeeName: emp.name,
-                employeeRole: emp.role,
-                action: type === 'in' ? 'Clocked In' : 'Clocked Out',
-                timestamp: now
-            });
+
+            // Record ONLY the event times (multiple in/out per day supported)
+            if (type === 'in') {
+                emp.status = 'in';
+                emp.lastAction = now;
+                this.data.history.unshift({
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    employeeRole: emp.role,
+                    action: 'Clocked In',
+                    timestamp: now
+                });
+            } else {
+                emp.status = 'out';
+                emp.lastAction = now;
+                this.data.history.unshift({
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    employeeRole: emp.role,
+                    action: 'Clocked Out',
+                    timestamp: now
+                });
+            }
+
             this.saveData();
             btn.innerHTML = type === 'in' ? '✓ Clocked In Successfully!' : '✓ Clocked Out Successfully!';
             btn.disabled = true;
@@ -1907,52 +1932,109 @@
             this.renderWeeklyReport();
         },
 
+        // Build sessions per day for a given employee + week.
+        // Sessions are pairs of: Clocked In -> next Clocked Out / Auto Clock Out.
+        // Supports multiple sessions in the same day.
+        getWeeklySessionsForEmployee(empId, weekStart) {
+            const emp = this.data.employees.find(e => e.id === empId);
+            const byDay = {};
+            if (!emp) return byDay;
+
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(weekStart);
+                day.setDate(day.getDate() + i);
+                const dayStart = new Date(day);
+                dayStart.setHours(0, 0, 0, 0);
+                const dayEnd = new Date(dayStart);
+                dayEnd.setDate(dayEnd.getDate() + 1);
+
+                const dayRecords = this.data.history
+                    .filter(h => h.employeeId === empId)
+                    .filter(h => {
+                        const t = new Date(h.timestamp);
+                        return t >= dayStart && t < dayEnd;
+                    })
+                    .slice()
+                    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                let openIn = null;
+                const sessions = [];
+
+                for (const r of dayRecords) {
+                    if (r.action === 'Clocked In') {
+                        if (!openIn) openIn = new Date(r.timestamp);
+                    } else if (r.action === 'Clocked Out' || r.action === 'Auto Clock Out (System)') {
+                        if (openIn) {
+                            const out = new Date(r.timestamp);
+                            if (out > openIn) sessions.push({ in: openIn, out });
+                            openIn = null;
+                        }
+                    }
+                }
+
+                // If still clocked in today, show an in-progress session
+                if (openIn && emp.status === 'in' && day.toDateString() === new Date().toDateString()) {
+                    sessions.push({ in: openIn, out: null, inProgress: true });
+                }
+
+                const totalHours = sessions.reduce((sum, s) => {
+                    const out = s.out ? s.out : new Date();
+                    return sum + Math.max(0, (out - s.in) / (1000 * 60 * 60));
+                }, 0);
+
+                byDay[day.toDateString()] = { sessions, totalHours };
+            }
+
+            return byDay;
+        },
+
         renderWeeklyReport() {
             const empId = parseInt(document.getElementById('weekly-emp-id')?.value);
             const dateVal = document.getElementById('weekly-date')?.value;
             if (!empId || !dateVal) return;
             const emp = this.data.employees.find(e => e.id === empId);
             if (!emp) return;
+
             const weekStart = this.getWeekStart(new Date(dateVal));
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
             document.getElementById('weekly-range').textContent = `Week: ${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}`;
+
             const table = document.getElementById('weekly-table');
+            if (!table) return;
             table.innerHTML = '';
+
+            const byDay = this.getWeeklySessionsForEmployee(empId, weekStart);
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             let totalHours = 0;
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
             for (let i = 0; i < 7; i++) {
                 const day = new Date(weekStart);
                 day.setDate(day.getDate() + i);
-                const dayStr = day.toDateString();
                 const isOff = (emp.offDays || []).includes(i);
-                const dayRecords = this.data.history.filter(h => h.employeeId === empId && new Date(h.timestamp).toDateString() === dayStr);
-                const clockIn = dayRecords.find(r => r.action === 'Clocked In');
-                const clockOut = dayRecords.find(r => r.action.includes('Out'));
-                let hours = 0;
-                let inTime = '-', outTime = '-';
-                if (clockIn && clockOut) {
-                    const inDate = new Date(clockIn.timestamp);
-                    const outDate = new Date(clockOut.timestamp);
-                    hours = (outDate - inDate) / (1000 * 60 * 60);
-                    inTime = this.formatTime(clockIn.timestamp);
-                    outTime = this.formatTime(clockOut.timestamp);
-                } else if (clockIn && !clockOut && day.toDateString() === new Date().toDateString()) {
-                    inTime = this.formatTime(clockIn.timestamp);
-                    outTime = '<span class="badge-amber px-2 py-0.5 rounded text-xs">In Progress</span>';
-                    hours = (new Date() - new Date(clockIn.timestamp)) / (1000 * 60 * 60);
-                }
-                totalHours += hours;
+
+                const key = day.toDateString();
+                const info = byDay[key] || { sessions: [], totalHours: 0 };
+                totalHours += info.totalHours;
+
+                const sessionsStr = info.sessions.length
+                    ? info.sessions
+                        .map(s => `${this.formatTime(s.in)}-${s.out ? this.formatTime(s.out) : '<span class="badge-amber px-2 py-0.5 rounded text-xs">In Progress</span>'}`)
+                        .join(' <span class="text-white/30">|</span> ')
+                    : '<span class="text-white/40">-</span>';
+
                 const rowClass = isOff ? 'bg-amber-500/10' : '';
                 const offBadge = isOff ? '<span class="badge-amber px-2 py-0.5 rounded text-xs ml-2">OFF</span>' : '';
+
                 table.innerHTML += `<tr class="${rowClass}">
-                    <td class="px-4 py-3">${days[i]}, ${this.formatDate(day)}${offBadge}</td>
-                    <td class="px-4 py-3 text-white/70">${inTime}</td>
-                    <td class="px-4 py-3 text-white/70">${outTime}</td>
-                    <td class="px-4 py-3 text-right font-mono ${hours >= 8 ? 'text-green-400' : 'text-white/70'}">${hours.toFixed(2)}</td>
+                    <td class="px-4 py-3">${dayNames[i]}, ${this.formatDate(day)}${offBadge}</td>
+                    <td class="px-4 py-3 text-white/80">${sessionsStr}</td>
+                    <td class="px-4 py-3 text-right font-mono ${info.totalHours >= 8 ? 'text-green-400' : 'text-white/70'}">${info.totalHours.toFixed(2)}</td>
                 </tr>`;
             }
-            document.getElementById('weekly-total').textContent = totalHours.toFixed(2);
+
+            const totalEl = document.getElementById('weekly-total');
+            if (totalEl) totalEl.textContent = totalHours.toFixed(2);
         },
 
         // SETTINGS
@@ -2124,15 +2206,59 @@
                 filename = 'activity_log.csv';
             } else if (type === 'weekly') {
                 const empId = parseInt(document.getElementById('weekly-emp-id')?.value);
+                const dateVal = document.getElementById('weekly-date')?.value;
                 const emp = this.data.employees.find(e => e.id === empId);
-                if (!emp) return;
-                csv = `Weekly Report for ${emp.name}\n\nDay,Date,Clock In,Clock Out,Hours\n`;
-                document.querySelectorAll('#weekly-table tr').forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length >= 4) {
-                        csv += `${cells[0].textContent},${cells[1].textContent},${cells[2].textContent},${cells[3].textContent}\n`;
-                    }
+                if (!emp || !dateVal) return;
+
+                const weekStart = this.getWeekStart(new Date(dateVal));
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+
+                const byDay = this.getWeeklySessionsForEmployee(empId, weekStart);
+
+                const dayKeys = Object.keys(byDay);
+                let maxSessions = 0;
+                dayKeys.forEach(k => {
+                    const count = (byDay[k]?.sessions || []).length;
+                    if (count > maxSessions) maxSessions = count;
                 });
+                maxSessions = Math.max(1, maxSessions);
+
+                const dynamicCols = [];
+                for (let i = 1; i <= maxSessions; i++) {
+                    dynamicCols.push(`In${i}`);
+                    dynamicCols.push(`Out${i}`);
+                }
+
+                csv = `Weekly Report for ${emp.name}\nWeek,${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}\n\n`;
+                csv += ['Day', ...dynamicCols, 'Total Hours'].join(',') + '\n';
+
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                let totalHours = 0;
+
+                for (let i = 0; i < 7; i++) {
+                    const dayDate = new Date(weekStart);
+                    dayDate.setDate(dayDate.getDate() + i);
+                    const key = dayDate.toDateString();
+                    const dayInfo = byDay[key] || { sessions: [], totalHours: 0 };
+
+                    const cells = [];
+                    for (let s = 0; s < maxSessions; s++) {
+                        const sess = dayInfo.sessions[s];
+                        if (sess) {
+                            cells.push(this.formatTime(sess.in));
+                            cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
+                        } else {
+                            cells.push('');
+                            cells.push('');
+                        }
+                    }
+
+                    totalHours += dayInfo.totalHours;
+                    csv += `${dayNames[i]} ${this.formatDate(dayDate)},${cells.map(c => this.csvEscape(c)).join(',')},${dayInfo.totalHours.toFixed(2)}\n`;
+                }
+
+                csv += `\nTOTAL,${Array(maxSessions * 2).fill('').join(',')},${totalHours.toFixed(2)}\n`;
                 filename = `weekly_${emp.name.toLowerCase().replace(/\s+/g, '_')}.csv`;
             }
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -2140,6 +2266,102 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        // Export weekly timesheets for ALL employees in a single CSV
+        // Includes multiple in/out pairs per day (In1/Out1...InN/OutN) and total hours per employee.
+        exportWeeklyAllEmployeesCSV() {
+            const dateVal = document.getElementById('weekly-date')?.value;
+            if (!dateVal) {
+                this.uiToast('Please select a week date first', 'error');
+                return;
+            }
+            if (!this.data.employees || this.data.employees.length === 0) {
+                this.uiToast('No employees to export', 'error');
+                return;
+            }
+
+            const weekStart = this.getWeekStart(new Date(dateVal));
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+
+            // Build byDay sessions for each employee and find max sessions across ALL employees & days.
+            const byEmp = new Map();
+            let maxSessions = 0;
+
+            this.data.employees.forEach(emp => {
+                const byDay = this.getWeeklySessionsForEmployee(emp.id, weekStart);
+                byEmp.set(emp.id, byDay);
+                Object.values(byDay).forEach(info => {
+                    const c = (info.sessions || []).length;
+                    if (c > maxSessions) maxSessions = c;
+                });
+            });
+
+            maxSessions = Math.max(1, maxSessions);
+
+            const dynamicCols = [];
+            for (let i = 1; i <= maxSessions; i++) {
+                dynamicCols.push(`In${i}`);
+                dynamicCols.push(`Out${i}`);
+            }
+
+            const headers = ['Employee', 'Role', 'Day', ...dynamicCols, 'Total Hours'];
+            let csv = `All Employees Weekly Timesheets\nWeek,${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}\n\n`;
+            csv += headers.join(',') + '\n';
+
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            this.data.employees.forEach(emp => {
+                const byDay = byEmp.get(emp.id) || {};
+                let empTotal = 0;
+
+                for (let i = 0; i < 7; i++) {
+                    const dayDate = new Date(weekStart);
+                    dayDate.setDate(dayDate.getDate() + i);
+                    const key = dayDate.toDateString();
+                    const dayInfo = byDay[key] || { sessions: [], totalHours: 0 };
+
+                    const cells = [];
+                    for (let s = 0; s < maxSessions; s++) {
+                        const sess = dayInfo.sessions[s];
+                        if (sess) {
+                            cells.push(this.csvEscape(this.formatTime(sess.in)));
+                            cells.push(this.csvEscape(sess.out ? this.formatTime(sess.out) : 'In Progress'));
+                        } else {
+                            cells.push('');
+                            cells.push('');
+                        }
+                    }
+
+                    empTotal += dayInfo.totalHours;
+
+                    csv += [
+                        this.csvEscape(emp.name),
+                        this.csvEscape(emp.role || ''),
+                        this.csvEscape(`${dayNames[i]} ${this.formatDate(dayDate)}`),
+                        ...cells,
+                        dayInfo.totalHours.toFixed(2)
+                    ].join(',') + '\n';
+                }
+
+                // Total row per employee
+                csv += [
+                    this.csvEscape(emp.name),
+                    this.csvEscape(emp.role || ''),
+                    'TOTAL',
+                    ...Array(maxSessions * 2).fill(''),
+                    empTotal.toFixed(2)
+                ].join(',') + '\n\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `weekly_all_employees_${this.formatDate(weekStart).replace(/\//g,'-')}.csv`;
             a.click();
             URL.revokeObjectURL(url);
         },

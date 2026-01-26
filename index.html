@@ -184,22 +184,29 @@
     <!-- EMPLOYEE LIST -->
     <template id="view-employee-list">
         <div class="min-h-screen flex flex-col fade-in">
-            <header class="p-6 flex items-center gap-4">
-                <button onclick="app.navigate('home')" class="p-2 rounded-lg hover:bg-white/10 transition">
-                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
-                </button>
-                <div class="flex-grow">
-                    <h1 class="text-2xl font-bold">Select Profile</h1>
-                    <p class="text-white/50 text-sm">Who are you?</p>
+            <!-- Sticky header so search stays visible while scrolling -->
+            <header class="sticky top-0 z-20 backdrop-blur-xl bg-slate-950/40 border-b border-white/10">
+                <div class="px-6 py-5 max-w-5xl mx-auto">
+                    <div class="flex items-center gap-3">
+                        <button onclick="app.navigate('home')" class="p-2 rounded-lg hover:bg-white/10 transition">
+                            <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                        </button>
+                        <div class="flex-1 text-center">
+                            <h1 class="text-xl sm:text-2xl font-bold">Choose your profile</h1>
+                            <p class="text-white/50 text-sm">Tap your name to clock in / out</p>
+                        </div>
+                        <div class="w-10"></div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="relative max-w-md mx-auto">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40"></i>
+                            <input type="text" id="emp-search" placeholder="Search by name or role..." class="w-full input-dark rounded-xl py-3 pl-12 pr-4" onkeyup="app.filterEmployeeCards()">
+                        </div>
+                    </div>
                 </div>
             </header>
-            <div class="px-6 mb-6">
-                <div class="relative max-w-md mx-auto">
-                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40"></i>
-                    <input type="text" id="emp-search" placeholder="Search by name or role..." class="w-full input-dark rounded-xl py-3 pl-12 pr-4" onkeyup="app.filterEmployeeCards()">
-                </div>
-            </div>
-            <main class="flex-grow px-6 pb-6 overflow-auto">
+
+            <main class="flex-grow px-6 pb-6 pt-6 overflow-auto">
                 <div id="employee-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"></div>
                 <p id="no-employees-msg" class="hidden text-center text-white/40 py-12">No employees found</p>
             </main>
@@ -407,7 +414,7 @@
         <div class="fade-in max-w-6xl mx-auto">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h2 class="text-2xl font-bold">Employees</h2>
-                <div class="flex gap-3">
+                <div class="flex flex-wrap gap-3 items-center">
                     <div class="relative">
                         <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40"></i>
                         <input type="text" id="admin-emp-search" placeholder="Search..." class="input-dark rounded-lg pl-10 pr-4 py-2 text-sm w-48" onkeyup="app.filterAdminEmployees()">
@@ -416,6 +423,18 @@
                         <i data-lucide="plus" class="w-4 h-4"></i>
                         Add Employee
                     </button>
+                    <button onclick="app.downloadEmployeesTemplate()" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                        Template
+                    </button>
+                    <button onclick="app.openImportEmployeesModal()" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        Import
+                    </button>
+                    <button onclick="app.exportEmployeesCSV()" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export
+                    </button>
                 </div>
             </div>
             <div class="glass-card rounded-xl overflow-hidden">
@@ -423,16 +442,24 @@
                     <table class="w-full table-dark">
                         <thead>
                             <tr>
-                                <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
-                                <th class="text-left px-4 py-3 text-sm font-medium">Role</th>
+                                <th onclick="app.setEmployeesSort('name')" class="text-left px-4 py-3 text-sm font-medium cursor-pointer">Employee</th>
+                                <th onclick="app.setEmployeesSort('role')" class="text-left px-4 py-3 text-sm font-medium cursor-pointer">Role</th>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Contact</th>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Off Days</th>
-                                <th class="text-left px-4 py-3 text-sm font-medium">Status</th>
+                                <th onclick="app.setEmployeesSort('status')" class="text-left px-4 py-3 text-sm font-medium cursor-pointer">Status</th>
                                 <th class="text-right px-4 py-3 text-sm font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="admin-emp-table"></tbody>
                     </table>
+                </div>
+                <div class="flex items-center justify-between p-4 border-t border-white/10 bg-white/5 text-sm">
+                    <div id="admin-emp-range" class="text-white/60">Showing 0-0 of 0</div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="app.changeEmployeesPage(-1)" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-white/80">Prev</button>
+                        <span id="admin-emp-page" class="text-white">1</span>
+                        <button onclick="app.changeEmployeesPage(1)" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-white/80">Next</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -508,6 +535,29 @@
                             <button type="submit" class="flex-1 py-2 btn-primary rounded-lg text-sm font-medium">Save</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Import Employees Modal -->
+        <div id="import-employees-modal" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="app.closeImportEmployeesModal()"></div>
+            <div class="absolute inset-0 flex items-center justify-center p-4">
+                <div class="glass-card rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+                    <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+                        <h3 class="font-bold">Import Employees (CSV)</h3>
+                        <button onclick="app.closeImportEmployeesModal()" class="p-1 hover:bg-white/10 rounded-lg transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 space-y-4 overflow-y-auto flex-grow">
+                        <p class="text-white/60 text-sm">Select a CSV file that matches the template. Required fields: <span class="font-semibold text-white">name, role</span>. Optional: gender (male/female), mobile, email, offDays (comma-separated like "0,6" for Sun & Sat), photo (URL).</p>
+                        <input type="file" id="import-employees-file" accept=".csv" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                        <div class="flex gap-3 pt-2">
+                            <button onclick="app.downloadEmployeesTemplate()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Download Template</button>
+                            <button onclick="app.handleImportEmployees()" class="flex-1 py-2 btn-primary rounded-lg text-sm font-medium">Import</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -770,7 +820,10 @@
             dbRef: null,
             isResetting: false,
             locationSettings: null,
-            currentIP: null
+            currentIP: null,
+            employeesPage: 1,
+            employeesPageSize: 10,
+            employeesSort: { sortKey: 'name', sortDir: 'asc' }
         },
 
         // Decode default Firebase config
@@ -1184,8 +1237,9 @@
                         if (val.history) this.data.history = val.history;
                     }
                     // Refresh current view only when admin layout is active
+                    // (prevents null DOM errors when user is on Home/Employee views)
                     const inAdmin = document.getElementById('admin-content');
-                    if (inAdmin) {
+                    if (inAdmin && document.getElementById('view-admin-layout')) {
                         if (this.data.adminView === 'dashboard') this.renderDashboard?.();
                         if (this.data.adminView === 'employees') this.renderAdminEmployees?.();
                         if (this.data.adminView === 'reports-activity') this.renderActivityLog?.();
@@ -1500,12 +1554,44 @@
             }
         },
 
-        // ADMIN EMPLOYEES
+        // ADMIN EMPLOYEES (sorting + pagination)
         renderAdminEmployees() {
             const table = document.getElementById('admin-emp-table');
             if (!table) return;
+
+            // Filter
+            const search = (document.getElementById('admin-emp-search')?.value || '').toLowerCase();
+            const filtered = this.data.employees.filter(emp =>
+                emp.name.toLowerCase().includes(search) || emp.role.toLowerCase().includes(search)
+            );
+
+            // Sort
+            const sort = this.data.employeesSort || { sortKey: 'name', sortDir: 'asc' };
+            const sorted = [...filtered].sort((a,b) => {
+                const mapVal = (obj, key) => {
+                    if (key === 'status') return obj.status === 'in' ? 1 : 0; // in > out
+                    if (typeof obj[key] === 'string') return obj[key].toLowerCase();
+                    return obj[key] ?? '';
+                };
+                const va = mapVal(a, sort.sortKey);
+                const vb = mapVal(b, sort.sortKey);
+                if (va < vb) return sort.sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sort.sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Pagination
+            const pageSize = this.data.employeesPageSize || 10;
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            this.data.employeesPage = Math.min(Math.max(this.data.employeesPage || 1, 1), totalPages);
+            const start = (this.data.employeesPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = sorted.slice(start, end);
+
+            // Render rows
             table.innerHTML = '';
-            this.data.employees.forEach(emp => {
+            pageItems.forEach(emp => {
                 const offDays = (emp.offDays || []).map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ') || '-';
                 const contact = [emp.mobile ? '📱' : '', emp.email ? '📧' : ''].filter(Boolean).join(' ') || '-';
                 table.innerHTML += `<tr data-name="${emp.name.toLowerCase()}" data-role="${emp.role.toLowerCase()}">
@@ -1516,19 +1602,39 @@
                     <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${emp.status === 'in' ? 'badge-green' : 'badge-gray'}">${emp.status === 'in' ? 'In' : 'Out'}</span></td>
                     <td class="px-4 py-3 text-right">
                         <button onclick="app.openEmployeeModal(${emp.id})" class="p-1 hover:bg-white/10 rounded"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                        <button onclick="app.confirmDeleteEmployee(${emp.id})" class="p-1 hover:bg-white/10 rounded text-red-400"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        <button onclick="app.confirmDeleteEmployee(${emp.id})" class="p-1 hover:bg-white/10 rounded text-red-400"><i data-lucide='trash-2' class='w-4 h-4'></i></button>
                     </td>
                 </tr>`;
             });
+
+            // Footer info
+            const rangeEl = document.getElementById('admin-emp-range');
+            const pageEl = document.getElementById('admin-emp-page');
+            if (rangeEl) rangeEl.textContent = total === 0 ? 'Showing 0-0 of 0' : `Showing ${start + 1}-${Math.min(end, total)} of ${total}`;
+            if (pageEl) pageEl.textContent = `${this.data.employeesPage} / ${totalPages}`;
             lucide.createIcons();
         },
 
+        setEmployeesSort(key) {
+            if (!this.data.employeesSort) this.data.employeesSort = { sortKey: 'name', sortDir: 'asc' };
+            if (this.data.employeesSort.sortKey === key) {
+                this.data.employeesSort.sortDir = this.data.employeesSort.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.data.employeesSort.sortKey = key;
+                this.data.employeesSort.sortDir = 'asc';
+            }
+            this.renderAdminEmployees();
+        },
+
+        changeEmployeesPage(delta) {
+            if (!this.data.employeesPage) this.data.employeesPage = 1;
+            this.data.employeesPage = Math.max(1, this.data.employeesPage + delta);
+            this.renderAdminEmployees();
+        },
+
         filterAdminEmployees() {
-            const search = document.getElementById('admin-emp-search')?.value.toLowerCase() || '';
-            document.querySelectorAll('#admin-emp-table tr').forEach(row => {
-                const match = row.dataset.name?.includes(search) || row.dataset.role?.includes(search);
-                row.style.display = match ? '' : 'none';
-            });
+            this.data.employeesPage = 1;
+            this.renderAdminEmployees();
         },
 
         openEmployeeModal(id = null) {
@@ -1928,7 +2034,7 @@
             });
         },
 
-        // CSV EXPORT
+        // CSV / IMPORT-EXPORT HELPERS
         exportCSV(type) {
             let csv = '';
             let filename = '';
@@ -1962,6 +2068,173 @@
             a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
+        },
+
+        downloadEmployeesTemplate() {
+            // Template columns (no extras)
+            const headers = [
+                'Id',
+                'FullName',
+                'Gender',
+                'JobTitle',
+                'Mobile',
+                'Email',
+                'OffDays',
+                'Photo'
+            ];
+            const csv = headers.join(',') + '\n';
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'employees_template.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        exportEmployeesCSV() {
+            if (!this.data.employees || this.data.employees.length === 0) {
+                this.uiToast('No employees to export', 'error');
+                return;
+            }
+            // Columns: Id, FullName, Gender, JobTitle, Mobile, Email, OffDays, Photo
+            const headers = ['Id','FullName','Gender','JobTitle','Mobile','Email','OffDays','Photo'];
+            const rows = this.data.employees.map(e => [
+                e.id ?? '',
+                this.csvEscape(e.name ?? ''),
+                (e.gender ?? '').toLowerCase(),
+                this.csvEscape(e.role ?? ''),
+                e.mobile ?? '',
+                e.email ?? '',
+                (e.offDays || []).join(','),
+                e.photo ?? ''
+            ].join(','));
+            const csv = headers.join(',') + '\n' + rows.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'employees_export.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
+        csvEscape(val) {
+            const s = String(val).replace(/"/g, '""');
+            if (s.includes(',') || s.includes('\n') || s.includes('"')) {
+                return '"' + s + '"';
+            }
+            return s;
+        },
+
+        openImportEmployeesModal() {
+            const modal = document.getElementById('import-employees-modal');
+            if (modal) modal.classList.remove('hidden');
+        },
+        closeImportEmployeesModal() {
+            const modal = document.getElementById('import-employees-modal');
+            if (modal) modal.classList.add('hidden');
+            const input = document.getElementById('import-employees-file');
+            if (input) input.value = '';
+        },
+
+        async handleImportEmployees() {
+            const input = document.getElementById('import-employees-file');
+            if (!input || !input.files || input.files.length === 0) {
+                this.uiToast('Please select a CSV file', 'error');
+                return;
+            }
+            const file = input.files[0];
+            try {
+                const text = await file.text();
+                const { ok, employees, errors } = this.parseEmployeesCSV(text);
+                if (!ok) {
+                    this.uiAlert('Import failed. ' + (errors[0] || 'Please check your file.'));
+                    return;
+                }
+                // Merge imported employees: assign new IDs for any missing/duplicate ids
+                const existingIds = new Set(this.data.employees.map(e => e.id));
+                let nextId = this.data.employees.length > 0 ? Math.max(...this.data.employees.map(e => e.id)) + 1 : 1;
+                employees.forEach(emp => {
+                    if (!emp.id || existingIds.has(emp.id)) {
+                        emp.id = nextId++;
+                    }
+                    existingIds.add(emp.id);
+                });
+                this.data.employees = [...this.data.employees, ...employees];
+                this.saveData();
+                this.renderAdminEmployees();
+                this.uiToast(`Imported ${employees.length} employees`, 'success');
+                this.closeImportEmployeesModal();
+            } catch (e) {
+                console.error('Import error', e);
+                this.uiAlert('Failed to import file');
+            }
+        },
+
+        parseEmployeesCSV(text) {
+            const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+            if (lines.length === 0) return { ok: false, errors: ['Empty file'] };
+            const header = lines[0].split(',').map(h => h.trim());
+            const required = ['FullName','JobTitle'];
+            const allowed = ['Id','FullName','Gender','JobTitle','Mobile','Email','OffDays','Photo'];
+            const headerSet = new Set(header);
+            const missing = required.filter(r => !headerSet.has(r));
+            if (missing.length > 0) {
+                return { ok: false, errors: ['Missing required columns: ' + missing.join(', ')] };
+            }
+            const employees = [];
+            const errors = [];
+            for (let i = 1; i < lines.length; i++) {
+                const raw = lines[i];
+                if (!raw.trim()) continue;
+                const cols = this.parseCsvLine(raw);
+                const obj = {};
+                header.forEach((h, idx) => {
+                    obj[h] = cols[idx] ?? '';
+                });
+                // Validation: FullName & JobTitle
+                if (!obj.FullName || !obj.JobTitle) {
+                    errors.push(`Row ${i+1}: FullName and JobTitle are required.`);
+                    continue;
+                }
+                // Normalize fields
+                const emp = {
+                    id: obj.Id ? parseInt(obj.Id, 10) : undefined,
+                    name: obj.FullName.trim(),
+                    role: obj.JobTitle.trim(),
+                    gender: (obj.Gender || '').toLowerCase() === 'female' ? 'female' : ( (obj.Gender || '').toLowerCase() === 'male' ? 'male' : '' ),
+                    mobile: obj.Mobile?.trim() || '',
+                    email: obj.Email?.trim() || '',
+                    offDays: (obj.OffDays ? String(obj.OffDays).split(/[|,]/).map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n>=0 && n<=6) : []),
+                    photo: obj.Photo?.trim() || ( (obj.Gender==='female') ? this.getDefaultAvatar('female') : this.getDefaultAvatar('male') ),
+                    status: 'out',
+                    lastAction: null
+                };
+                employees.push(emp);
+            }
+            return { ok: errors.length === 0, employees, errors };
+        },
+
+        parseCsvLine(line) {
+            // Simple CSV parser supporting quoted fields with commas
+            const result = [];
+            let cur = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (inQuotes) {
+                    if (ch === '"' && line[i+1] === '"') { cur += '"'; i++; }
+                    else if (ch === '"') { inQuotes = false; }
+                    else { cur += ch; }
+                } else {
+                    if (ch === ',') { result.push(cur); cur=''; }
+                    else if (ch === '"') { inQuotes = true; }
+                    else { cur += ch; }
+                }
+            }
+            result.push(cur);
+            return result.map(s => s.trim());
         },
 
         // UI HELPERS

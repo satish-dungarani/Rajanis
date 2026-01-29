@@ -82,6 +82,16 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: #ffffff;
         }
+        select.input-dark, select#sr-gender, select#sr-role, select#emp-gender {
+            /* Match other inputs: soft dark background with light text */
+            background-color: rgba(15, 23, 42, 0.9);
+            color: #e5e7eb;
+        }
+        select.input-dark option {
+            /* Dropdown list: light background with dark text for readability */
+            background-color: #e5e7eb;
+            color: #020617;
+        }
         .input-dark:focus {
             outline: none;
             border-color: var(--theme-accent);
@@ -252,6 +262,96 @@
                     </div>
                 </div>
             </main>
+        </div>
+    </template>
+
+    <!-- EMPLOYEE SELF REGISTRATION (for QR link) -->
+    <template id="view-employee-register">
+        <div class="min-h-screen flex items-center justify-center p-6 fade-in relative">
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute -top-40 -left-40 w-96 h-96 bg-[var(--theme-primary)] rounded-full blur-3xl opacity-20"></div>
+                <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[var(--theme-accent)] rounded-full blur-3xl opacity-20"></div>
+            </div>
+            <div class="relative z-10 w-full max-w-lg">
+                <div class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div id="sr-brand-logo-container" class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center">
+                                <i data-lucide="shopping-bag" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <div>
+                                <h2 id="sr-brand-name" class="text-lg font-semibold">Rajani Superstore</h2>
+                                <p class="text-white/50 text-xs">Employee Details Form</p>
+                            </div>
+                        </div>
+                    </div>
+                    <form onsubmit="app.selfRegisterEmployee(event)" class="space-y-4 mt-2">
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Full Name *</label>
+                            <input id="sr-name" type="text" required class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Your full name">
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Gender</label>
+                                <select id="sr-gender" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-white/60 text-xs mb-1">Job Role *</label>
+                                <select id="sr-role" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Select role</option>
+                                    <option value="Shop Floor Assistant">Shop Floor Assistant</option>
+                                    <option value="Till Operative">Till Operative</option>
+                                    <option value="Online">Online</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Security">Security</option>
+                                    <option value="Cleaning & Hygiene In charge">Cleaning & Hygiene In charge</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Mobile *</label>
+                                <input id="sr-mobile" type="tel" required class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Your mobile number">
+                            </div>
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Email</label>
+                                <input id="sr-email" type="email" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Optional">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Regular Off Days (if any)</label>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-0" class="rounded"> Sun</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-1" class="rounded"> Mon</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-2" class="rounded"> Tue</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-3" class="rounded"> Wed</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-4" class="rounded"> Thu</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-5" class="rounded"> Fri</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-6" class="rounded"> Sat</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Photo *</label>
+                            <div class="flex items-center gap-4">
+                                <img id="sr-photo-preview" src="https://api.dicebear.com/9.x/toon-head/svg?seed=Christopher" class="w-16 h-16 rounded-full bg-slate-700 object-cover">
+                                <div class="flex-grow space-y-2">
+                                    <input type="file" id="sr-photo-file" accept="image/*" class="hidden" onchange="app.handleSelfPhotoUpload(event)">
+                                    <button type="button" onclick="document.getElementById('sr-photo-file').click()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Upload</button>
+                                    <p class="text-white/30 text-xs">Please upload a clear profile photo (required).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <button type="submit" class="w-full py-2.5 btn-primary rounded-lg text-sm font-semibold">Submit Details</button>
+                        </div>
+                    </form>
+                    <p class="mt-3 text-[11px] text-white/40 text-center">By submitting this form you confirm the information is accurate.</p>
+                </div>
+            </div>
         </div>
     </template>
 
@@ -878,7 +978,8 @@
             employeesPage: 1,
             employeesPageSize: 10,
             employeesSort: { sortKey: 'name', sortDir: 'asc' },
-            backups: []
+            backups: [],
+            employeesLoaded: false
         },
 
         // Decode default Firebase config
@@ -898,7 +999,13 @@
             this.initFirebase(); // Initialize Firebase FIRST
             this.loadData();
             this.startClock();
-            this.navigate('home');
+            // Support direct navigation via URL hash for QR-based pages
+            const hash = (window.location.hash || '').replace('#', '');
+            if (hash === 'employee-register') {
+                this.navigate('employee-register');
+            } else {
+                this.navigate('home');
+            }
         },
 
 
@@ -1449,6 +1556,10 @@
                         if (val.employees) this.data.employees = val.employees;
                         if (val.history) this.data.history = val.history;
                     }
+                    // Mark that employees/history have been loaded at least once
+                    this.data.employeesLoaded = true;
+                    // Apply auto clock-out rules once data is available
+                    this.checkAutoLogout();
                     // Refresh current view only when admin layout is active
                     // (prevents null DOM errors when user is on Home/Employee views)
                     const inAdmin = document.getElementById('admin-content');
@@ -1976,6 +2087,123 @@
             this.uiToast('Employee saved!', 'success');
         },
 
+        // Employee self-registration (QR-based form)
+        selfRegisterEmployee(e) {
+            e.preventDefault();
+            if (!this.data.db) {
+                this.uiAlert('System is not connected to the server. Please contact your manager.');
+                return;
+            }
+            if (!this.data.employeesLoaded) {
+                this.uiAlert('System is still loading. Please wait a few seconds and try again.');
+                return;
+            }
+
+            const name = document.getElementById('sr-name').value.trim();
+            const role = document.getElementById('sr-role').value.trim();
+            const gender = document.getElementById('sr-gender').value;
+            const mobile = document.getElementById('sr-mobile').value.trim();
+            const email = document.getElementById('sr-email').value.trim();
+            const offDays = [];
+            for (let i = 0; i < 7; i++) {
+                if (document.getElementById(`sr-off-${i}`).checked) offDays.push(i);
+            }
+
+            // Basic validations
+            if (!name || !role) {
+                this.uiAlert('Please fill in your full name and job role.');
+                return;
+            }
+
+            // Name uniqueness check (case-insensitive)
+            const exists = this.data.employees.some(emp => emp.name.trim().toLowerCase() === name.toLowerCase());
+            if (exists) {
+                this.uiAlert('This name already exists in the system. Please contact your manager.');
+                return;
+            }
+
+            if (!mobile) {
+                this.uiAlert('Please enter your mobile number.');
+                return;
+            }
+
+            if (!this.data.tempPhoto) {
+                this.uiAlert('Please upload your profile photo before submitting.');
+                return;
+            }
+
+            const photo = this.data.tempPhoto;
+
+            const newId = this.data.employees.length > 0
+                ? Math.max(...this.data.employees.map(e => e.id || 0)) + 1
+                : 1;
+
+            this.data.employees.push({
+                id: newId,
+                name,
+                role,
+                gender,
+                mobile,
+                email,
+                photo,
+                offDays,
+                active: true,
+                status: 'out',
+                lastAction: null
+            });
+
+            this.saveData();
+            this.uiToast('Your details have been submitted successfully!', 'success');
+
+            // Clear temporary photo reference
+            this.data.tempPhoto = null;
+
+            // Replace form with a simple thank-you screen and attempt to close the tab/window
+            const root = document.getElementById('app-root');
+            if (root) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-6">
+                        <div class="glass-card rounded-3xl p-8 max-w-md text-center">
+                            <h2 class="text-2xl font-bold mb-3">Thank you!</h2>
+                            <p class="text-white/60 mb-1">Your details have been submitted successfully.</p>
+                            <p class="text-white/40 text-sm">You can now close this window.</p>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+
+            // Try to close the tab/window (will only work if it was opened by script)
+            setTimeout(() => {
+                try { window.close(); } catch (err) { /* ignored */ }
+            }, 1000);
+        },
+
+        handleSelfPhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const max = 200;
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > max) { h *= max / w; w = max; } }
+                    else { if (h > max) { w *= max / h; h = max; } }
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const preview = document.getElementById('sr-photo-preview');
+                    if (preview) preview.src = dataUrl;
+                    this.data.tempPhoto = dataUrl;
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+
         confirmDeleteEmployee(id) {
             const emp = this.data.employees.find(e => e.id === id);
             this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', () => {
@@ -2345,9 +2573,16 @@
             const mobileBrand = document.getElementById('mobile-brand');
             if (sidebarBrand) sidebarBrand.textContent = name;
             if (mobileBrand) mobileBrand.textContent = name;
+            // Self registration header branding
+            const srBrandName = document.getElementById('sr-brand-name');
+            if (srBrandName) srBrandName.textContent = name;
             // Logo
             if (branding.logo) {
-                const logoContainers = [document.getElementById('home-logo-container'), document.getElementById('sidebar-logo')];
+                const logoContainers = [
+                    document.getElementById('home-logo-container'),
+                    document.getElementById('sidebar-logo'),
+                    document.getElementById('sr-brand-logo-container')
+                ];
                 logoContainers.forEach(el => {
                     if (el) el.innerHTML = `<img src="${branding.logo}" class="w-full h-full object-cover rounded-lg">`;
                 });

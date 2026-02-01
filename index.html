@@ -1772,7 +1772,7 @@
 
             activeEmployees.forEach(emp => {
                 const card = document.createElement('div');
-                card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center';
+                card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center relative';
                 card.dataset.name = emp.name.toLowerCase();
                 card.dataset.role = emp.role.toLowerCase();
                 card.onclick = () => {
@@ -1780,13 +1780,18 @@
                     this.navigate('employee-action');
                 };
                 const statusClass = emp.status === 'in' ? 'bg-green-500' : 'bg-slate-600';
+                const todayIndex = new Date().getDay();
+                const hasDayOffToday = Array.isArray(emp.offDays) && emp.offDays.includes(todayIndex);
                 card.innerHTML = `
+                    ${hasDayOffToday ? '<span class="absolute top-1 right-1 badge-amber px-2 py-1 rounded-full text-[10px] font-semibold uppercase">Off</span>' : ''}
                     <div class="relative inline-block mb-4">
                         <img src="${emp.photo}" class="w-24 h-24 rounded-full object-cover mx-auto bg-slate-700">
                         <div class="absolute bottom-1 right-1 w-5 h-5 rounded-full ${statusClass} border-2 border-slate-800"></div>
                     </div>
                     <h3 class="font-bold text-lg">${emp.name}</h3>
-                    <p class="text-white/50 text-sm">${emp.role}</p>
+                    <div class="flex items-center justify-center gap-2 text-white/50 text-sm">
+                        <span>${emp.role}</span>
+                    </div>
                     <span class="inline-block mt-3 px-3 py-1 rounded-full text-xs font-medium ${emp.status === 'in' ? 'badge-green' : 'badge-gray'}">${emp.status === 'in' ? 'Clocked In' : 'Clocked Out'}</span>
                 `;
                 grid.appendChild(card);

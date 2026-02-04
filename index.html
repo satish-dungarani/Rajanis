@@ -733,6 +733,7 @@
                                 <th class="text-left px-4 py-3 text-sm font-medium">Time</th>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Role</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Photo</th>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Action</th>
                             </tr>
                         </thead>
@@ -921,6 +922,55 @@
                         </div>
                     </div>
                 </div>
+                <!-- Clock-In Verification -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="scan-face" class="w-5 h-5 text-[var(--theme-accent)]"></i> Clock-In Verification</span>
+                        <span id="verification-mode-badge" class="px-2 py-0.5 rounded text-xs badge-gray">PIN + Camera</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
+                            <p class="text-white/50 text-xs">Enable PIN at profile selection and/or camera capture on clock actions.</p>
+                            
+                            <!-- PIN Toggle -->
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                        <i data-lucide="key-round" class="w-4 h-4 text-white/60"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium">Employee PIN</p>
+                                        <p class="text-xs text-white/40">Require PIN before entering clock screen</p>
+                                    </div>
+                                </div>
+                                <button id="pin-verify-toggle" onclick="app.togglePinVerification()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="pin-verify-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+
+                            <!-- Camera Toggle -->
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                        <i data-lucide="camera" class="w-4 h-4 text-white/60"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium">Camera Capture</p>
+                                        <p class="text-xs text-white/40">Capture photo on each clock in/out</p>
+                                    </div>
+                                </div>
+                                <button id="camera-verify-toggle" onclick="app.toggleCameraVerification()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="camera-verify-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+                            
+                            <div class="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <p class="text-xs text-blue-400"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Camera mode captures a compressed image for verification only. Images are optimized for minimal storage.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Data & Firebase -->
                 <div class="glass-card rounded-xl overflow-hidden">
                     <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
@@ -1008,7 +1058,9 @@
             employeesPageSize: 10,
             employeesSort: { sortKey: 'name', sortDir: 'asc' },
             backups: [],
-            employeesLoaded: false
+            employeesLoaded: false,
+            pinVerificationEnabled: true,
+            cameraVerificationEnabled: false
         },
 
         // Decode default Firebase config
@@ -1322,6 +1374,171 @@
             this.fetchCurrentIP();
         },
 
+        // VERIFICATION SETTINGS (independent toggles)
+        togglePinVerification() {
+            this.data.pinVerificationEnabled = !this.data.pinVerificationEnabled;
+            if (this.data.db) {
+                this.data.db.ref('rajani_pin_verification').set(this.data.pinVerificationEnabled);
+            }
+            this.updateVerificationSettingsUI();
+            this.uiToast(`Employee PIN ${this.data.pinVerificationEnabled ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        toggleCameraVerification() {
+            this.data.cameraVerificationEnabled = !this.data.cameraVerificationEnabled;
+            if (this.data.db) {
+                this.data.db.ref('rajani_camera_verification').set(this.data.cameraVerificationEnabled);
+            }
+            this.updateVerificationSettingsUI();
+            this.uiToast(`Camera Capture ${this.data.cameraVerificationEnabled ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        updateVerificationSettingsUI() {
+            const pinToggle = document.getElementById('pin-verify-toggle');
+            const pinKnob = document.getElementById('pin-verify-knob');
+            const camToggle = document.getElementById('camera-verify-toggle');
+            const camKnob = document.getElementById('camera-verify-knob');
+            const badge = document.getElementById('verification-mode-badge');
+
+            if (pinToggle && pinKnob) {
+                if (this.data.pinVerificationEnabled) {
+                    pinToggle.classList.remove('bg-white/20');
+                    pinToggle.classList.add('bg-green-500');
+                    pinKnob.style.transform = 'translateX(24px)';
+                } else {
+                    pinToggle.classList.add('bg-white/20');
+                    pinToggle.classList.remove('bg-green-500');
+                    pinKnob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (camToggle && camKnob) {
+                if (this.data.cameraVerificationEnabled) {
+                    camToggle.classList.remove('bg-white/20');
+                    camToggle.classList.add('bg-green-500');
+                    camKnob.style.transform = 'translateX(24px)';
+                } else {
+                    camToggle.classList.add('bg-white/20');
+                    camToggle.classList.remove('bg-green-500');
+                    camKnob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (badge) {
+                const pin = this.data.pinVerificationEnabled;
+                const cam = this.data.cameraVerificationEnabled;
+                if (pin && cam) {
+                    badge.textContent = 'PIN + Camera';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-blue';
+                } else if (pin) {
+                    badge.textContent = 'PIN Only';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                } else if (cam) {
+                    badge.textContent = 'Camera Only';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-amber';
+                } else {
+                    badge.textContent = 'None';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                }
+            }
+        },
+
+        // Camera capture for clock verification
+        async captureVerificationPhoto() {
+            return new Promise((resolve) => {
+                const container = document.getElementById('modal-container');
+                const content = document.getElementById('modal-content');
+                if (!container || !content) return resolve(null);
+
+                content.innerHTML = `
+                    <div class="glass-card rounded-2xl p-6 w-full max-w-lg">
+                        <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+                            <i data-lucide="camera" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                            Verification Photo
+                        </h3>
+                        <p class="text-white/60 text-sm mb-4">Please look at the camera and click Capture.</p>
+                        <div class="relative rounded-lg overflow-hidden bg-black mb-4">
+                            <video id="camera-preview" autoplay playsinline class="w-full h-64 object-cover"></video>
+                            <canvas id="camera-canvas" class="hidden"></canvas>
+                        </div>
+                        <div id="camera-error" class="hidden p-3 rounded-lg bg-red-500/20 text-red-400 text-sm mb-4">
+                            <i data-lucide="alert-circle" class="w-4 h-4 inline mr-1"></i>
+                            <span>Camera access denied or not available</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" id="camera-cancel" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition">Cancel</button>
+                            <button type="button" id="camera-capture" class="flex-1 py-2 bg-green-500 hover:bg-green-600 rounded-lg font-medium transition flex items-center justify-center gap-2">
+                                <i data-lucide="camera" class="w-4 h-4"></i> Capture
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.classList.remove('hidden');
+                lucide.createIcons();
+
+                const video = document.getElementById('camera-preview');
+                const canvas = document.getElementById('camera-canvas');
+                const btnCapture = document.getElementById('camera-capture');
+                const btnCancel = document.getElementById('camera-cancel');
+                const errorDiv = document.getElementById('camera-error');
+                let stream = null;
+
+                const stopCamera = () => {
+                    if (stream) {
+                        stream.getTracks().forEach(t => t.stop());
+                        stream = null;
+                    }
+                };
+
+                const close = (result) => {
+                    stopCamera();
+                    container.classList.add('hidden');
+                    content.innerHTML = '';
+                    resolve(result);
+                };
+
+                // Start camera
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
+                    audio: false 
+                })
+                .then(s => {
+                    stream = s;
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    console.error('Camera error:', err);
+                    errorDiv.classList.remove('hidden');
+                    btnCapture.disabled = true;
+                    btnCapture.classList.add('opacity-50', 'cursor-not-allowed');
+                });
+
+                btnCancel.onclick = () => close(null);
+
+                btnCapture.onclick = () => {
+                    if (!stream) return close(null);
+                    
+                    // Set canvas size (small for storage efficiency)
+                    const maxSize = 160;
+                    canvas.width = maxSize;
+                    canvas.height = maxSize;
+                    
+                    const ctx = canvas.getContext('2d');
+                    // Draw video frame to canvas (cropped square)
+                    const vw = video.videoWidth;
+                    const vh = video.videoHeight;
+                    const size = Math.min(vw, vh);
+                    const sx = (vw - size) / 2;
+                    const sy = (vh - size) / 2;
+                    ctx.drawImage(video, sx, sy, size, size, 0, 0, maxSize, maxSize);
+                    
+                    // Compress to JPEG with low quality for minimal storage
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                    close(dataUrl);
+                };
+            });
+        },
+
         // NAVIGATION
         navigate(view) {
             const root = document.getElementById('app-root');
@@ -1626,6 +1843,24 @@
                     }
                 });
                 
+                // Sync PIN verification from cloud
+                this.data.db.ref('rajani_pin_verification').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (val === true || val === false) {
+                        this.data.pinVerificationEnabled = val;
+                        this.updateVerificationSettingsUI();
+                    }
+                });
+
+                // Sync camera verification from cloud
+                this.data.db.ref('rajani_camera_verification').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (val === true || val === false) {
+                        this.data.cameraVerificationEnabled = val;
+                        this.updateVerificationSettingsUI();
+                    }
+                });
+                
                 console.log('Firebase connected successfully');
             } catch (e) {
                 console.error('Firebase init error:', e);
@@ -1775,15 +2010,19 @@
                 card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center relative';
                 card.dataset.name = emp.name.toLowerCase();
                 card.dataset.role = emp.role.toLowerCase();
-                card.onclick = () => {
+                card.onclick = async () => {
                     this.data.selectedEmployeeId = emp.id;
+                    if (this.data.pinVerificationEnabled && emp.pinHash) {
+                        const ok = await this.promptEmployeePin(emp);
+                        if (!ok) return;
+                    }
                     this.navigate('employee-action');
                 };
                 const statusClass = emp.status === 'in' ? 'bg-green-500' : 'bg-slate-600';
                 const todayIndex = new Date().getDay();
                 const hasDayOffToday = Array.isArray(emp.offDays) && emp.offDays.includes(todayIndex);
                 card.innerHTML = `
-                    ${hasDayOffToday ? '<span class="absolute top-1 right-1 badge-amber px-2 py-1 rounded-full text-[10px] font-semibold uppercase">Off</span>' : ''}
+                    ${hasDayOffToday ? '<span class="absolute top-1 right-1 z-10 badge-amber px-2 py-1 rounded-full text-[10px] font-semibold uppercase">Off</span>' : ''}
                     <div class="relative inline-block mb-4">
                         <img src="${emp.photo}" class="w-24 h-24 rounded-full object-cover mx-auto bg-slate-700">
                         <div class="absolute bottom-1 right-1 w-5 h-5 rounded-full ${statusClass} border-2 border-slate-800"></div>
@@ -1866,10 +2105,16 @@
                 return;
             }
 
-            // Require 4-digit PIN if set on employee record
-            if (emp.pinHash) {
-                const ok = await this.promptEmployeePin(emp);
-                if (!ok) return;
+            // Verification based on settings (camera only here)
+            let verificationPhoto = null;
+
+            if (this.data.cameraVerificationEnabled) {
+                // Camera capture mode
+                verificationPhoto = await this.captureVerificationPhoto();
+                if (!verificationPhoto) {
+                    // User cancelled or camera failed
+                    return;
+                }
             }
             
             // Check location restriction
@@ -1898,27 +2143,28 @@
             const now = new Date().toISOString();
 
             // Record ONLY the event times (multiple in/out per day supported)
+            const historyRecord = {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                employeeRole: emp.role,
+                action: type === 'in' ? 'Clocked In' : 'Clocked Out',
+                timestamp: now
+            };
+            
+            // Attach verification photo if captured (camera mode)
+            if (verificationPhoto) {
+                historyRecord.verificationPhoto = verificationPhoto;
+            }
+
             if (type === 'in') {
                 emp.status = 'in';
                 emp.lastAction = now;
-                this.data.history.unshift({
-                    employeeId: emp.id,
-                    employeeName: emp.name,
-                    employeeRole: emp.role,
-                    action: 'Clocked In',
-                    timestamp: now
-                });
             } else {
                 emp.status = 'out';
                 emp.lastAction = now;
-                this.data.history.unshift({
-                    employeeId: emp.id,
-                    employeeName: emp.name,
-                    employeeRole: emp.role,
-                    action: 'Clocked Out',
-                    timestamp: now
-                });
             }
+            
+            this.data.history.unshift(historyRecord);
 
             this.saveData();
             btn.innerHTML = type === 'in' ? '✓ Clocked In Successfully!' : '✓ Clocked Out Successfully!';
@@ -2486,22 +2732,59 @@
             if (!table) return;
             table.innerHTML = '';
             if (this.data.history.length === 0) {
-                table.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-white/40">No activity records</td></tr>';
+                table.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-white/40">No activity records</td></tr>';
                 return;
             }
-            this.data.history.forEach(h => {
+            this.data.history.forEach((h, idx) => {
                 const isIn = h.action.includes('In');
                 const isAuto = h.action.includes('Auto');
                 let badgeClass = isIn ? 'badge-green' : 'badge-red';
                 if (isAuto) badgeClass = 'badge-amber';
+
+                const hasPhoto = !!h.verificationPhoto;
+                const photoCell = hasPhoto
+                    ? `<button type="button" onclick="app.viewVerificationPhoto(${idx})" class="group">
+                           <img src="${h.verificationPhoto}" class="w-10 h-10 rounded-lg object-cover border border-white/10 bg-black/30 group-hover:opacity-90" loading="lazy" />
+                       </button>`
+                    : '';
+
                 table.innerHTML += `<tr>
                     <td class="px-4 py-3 text-white/70">${this.formatDate(h.timestamp)}</td>
                     <td class="px-4 py-3 text-white/70">${this.formatTime(h.timestamp)}</td>
                     <td class="px-4 py-3">${h.employeeName}</td>
                     <td class="px-4 py-3 text-white/50">${h.employeeRole || '-'}</td>
+                    <td class="px-4 py-3">${photoCell}</td>
                     <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${badgeClass}">${h.action}</span></td>
                 </tr>`;
             });
+        },
+
+        // View verification photo in a larger modal (read-only)
+        viewVerificationPhoto(historyIndex) {
+            const rec = this.data.history?.[historyIndex];
+            if (!rec || !rec.verificationPhoto) return;
+            const container = document.getElementById('modal-container');
+            const content = document.getElementById('modal-content');
+            if (!container || !content) return;
+
+            content.innerHTML = `
+                <div class="glass-card rounded-2xl p-4 w-full max-w-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-base font-bold">Verification Photo</h3>
+                            <p class="text-white/50 text-xs">${rec.employeeName || ''} • ${this.formatDateTime(rec.timestamp)}</p>
+                        </div>
+                        <button onclick="app.closeModal()" class="p-2 rounded-lg hover:bg-white/10 transition" aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="rounded-xl overflow-hidden bg-black/40 border border-white/10">
+                        <img src="${rec.verificationPhoto}" class="w-full h-auto object-contain" />
+                    </div>
+                </div>
+            `;
+            container.classList.remove('hidden');
+            lucide.createIcons();
         },
 
         // WEEKLY REPORT
@@ -2694,6 +2977,8 @@
             }
             // Location Restriction
             this.renderLocationSettings();
+            // Verification Settings
+            this.updateVerificationSettingsUI();
         },
 
         toggleAccordion(btn) {

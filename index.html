@@ -611,6 +611,10 @@
                                 <input type="text" id="emp-role" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
                             </div>
                         </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Display Order Number (optional)</label>
+                            <input type="number" id="emp-display-order" min="1" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="e.g., 1">
+                        </div>
                         
                         <!-- Employee PIN (4-digit) -->
                         <div>
@@ -1993,6 +1997,9 @@
 
             // Only show ACTIVE employees in Employee Portal
             const activeEmployees = this.data.employees.filter(e => e.active !== false);
+            const orderedEmployees = activeEmployees.some(e => e.displayOrder)
+                ? [...activeEmployees].sort((a, b) => (a.displayOrder ?? 999999) - (b.displayOrder ?? 999999))
+                : activeEmployees;
 
             // Update real-time counters (active employees only)
             const inCount = activeEmployees.filter(e => e.status === 'in').length;
@@ -2005,7 +2012,7 @@
             // Helpful debug line so you can SEE it in console
             console.debug('[Employee Portal Counters] Active:', activeEmployees.length, 'In:', inCount, 'Out:', outCount);
 
-            activeEmployees.forEach(emp => {
+            orderedEmployees.forEach(emp => {
                 const card = document.createElement('div');
                 card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center relative';
                 card.dataset.name = emp.name.toLowerCase();
@@ -2443,6 +2450,9 @@
                     const pinInput = document.getElementById('emp-pin');
                     if (pinInput) pinInput.value = '';
 
+                    const displayOrderInput = document.getElementById('emp-display-order');
+                    if (displayOrderInput) displayOrderInput.value = emp.displayOrder || '';
+
                     for (let i = 0; i < 7; i++) {
                         document.getElementById(`off-${i}`).checked = (emp.offDays || []).includes(i);
                     }
@@ -2454,6 +2464,8 @@
                 document.getElementById('emp-gender').value = '';
                 document.getElementById('emp-mobile').value = '';
                 document.getElementById('emp-email').value = '';
+                const displayOrderInput = document.getElementById('emp-display-order');
+                if (displayOrderInput) displayOrderInput.value = '';
 
                 const pinInput = document.getElementById('emp-pin');
                 if (pinInput) pinInput.value = '';
@@ -2480,6 +2492,14 @@
             const mobile = document.getElementById('emp-mobile').value.trim();
             const email = document.getElementById('emp-email').value.trim();
             const active = (document.getElementById('emp-active')?.value || 'true') === 'true';
+            const displayOrderRaw = document.getElementById('emp-display-order')?.value.trim();
+            let displayOrder = displayOrderRaw ? parseInt(displayOrderRaw, 10) : null;
+            if (displayOrderRaw) {
+                if (isNaN(displayOrder) || displayOrder <= 0) {
+                    this.uiAlert('Display Order Number must be a positive number.');
+                    return;
+                }
+            }
 
             // Password (4-digit numeric). Optional unless you decide to enforce later.
             const pinRaw = (document.getElementById('emp-pin')?.value || '').trim();
@@ -2502,6 +2522,11 @@
                 if (emp) {
                     // Keep existing data/history unchanged; only update employee record fields
                     Object.assign(emp, { name, role, gender, mobile, email, photo, offDays, active });
+                    if (displayOrderRaw) {
+                        emp.displayOrder = displayOrder;
+                    } else {
+                        delete emp.displayOrder;
+                    }
 
                     // Backward-compatible: only set/replace PIN if provided; if left blank, keep existing.
                     if (pinRaw) {
@@ -2515,7 +2540,9 @@
                 }
             } else {
                 const newId = this.data.employees.length > 0 ? Math.max(...this.data.employees.map(e => e.id)) + 1 : 1;
-                this.data.employees.push({ id: newId, name, role, gender, mobile, email, photo, offDays, active, pinHash, status: 'out', lastAction: null });
+                const newEmp = { id: newId, name, role, gender, mobile, email, photo, offDays, active, pinHash, status: 'out', lastAction: null };
+                if (displayOrderRaw) newEmp.displayOrder = displayOrder;
+                this.data.employees.push(newEmp);
             }
             this.saveData();
             this.closeEmployeeModal();

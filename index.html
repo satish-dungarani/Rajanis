@@ -717,15 +717,21 @@
                     <h2 class="text-2xl font-bold">Activity Log</h2>
                     <p class="text-white/50 text-sm">All clock in/out records</p>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="app.exportCSV('activity')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
-                        <i data-lucide="download" class="w-4 h-4"></i>
-                        Export CSV
-                    </button>
-                    <button onclick="app.confirmClearHistory()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2 transition">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        Clear
-                    </button>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40"></i>
+                        <input type="text" id="activity-search" placeholder="Search..." class="input-dark rounded-lg pl-10 pr-4 py-2 text-sm w-48" onkeyup="app.setActivitySearch(this.value)">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="app.exportCSV('activity')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Export CSV
+                        </button>
+                        <button onclick="app.confirmClearHistory()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            Clear
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="glass-card rounded-xl overflow-hidden">
@@ -743,6 +749,11 @@
                         </thead>
                         <tbody id="activity-table"></tbody>
                     </table>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t border-white/10 bg-white/5 text-sm">
+                    <div id="activity-range" class="text-white/60">Showing 0-0 of 0</div>
+                    <div id="activity-loading" class="text-white/40 hidden">Loading...</div>
+                    <div id="activity-pagination" class="flex items-center gap-2"></div>
                 </div>
             </div>
         </div>
@@ -1064,7 +1075,10 @@
             backups: [],
             employeesLoaded: false,
             pinVerificationEnabled: true,
-            cameraVerificationEnabled: false
+            cameraVerificationEnabled: false,
+            activityPage: 1,
+            activityPageSize: 50,
+            activitySearch: ''
         },
 
         // Decode default Firebase config
@@ -2757,33 +2771,114 @@
         renderActivityLog() {
             const table = document.getElementById('activity-table');
             if (!table) return;
-            table.innerHTML = '';
-            if (this.data.history.length === 0) {
-                table.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-white/40">No activity records</td></tr>';
-                return;
-            }
-            this.data.history.forEach((h, idx) => {
-                const isIn = h.action.includes('In');
-                const isAuto = h.action.includes('Auto');
-                let badgeClass = isIn ? 'badge-green' : 'badge-red';
-                if (isAuto) badgeClass = 'badge-amber';
 
-                const hasPhoto = !!h.verificationPhoto;
-                const photoCell = hasPhoto
-                    ? `<button type="button" onclick="app.viewVerificationPhoto(${idx})" class="group">
-                           <img src="${h.verificationPhoto}" class="w-10 h-10 rounded-lg object-cover border border-white/10 bg-black/30 group-hover:opacity-90" loading="lazy" />
-                       </button>`
-                    : '';
+            const pageSize = this.data.activityPageSize || 50;
+            const search = (this.data.activitySearch || '').toLowerCase();
+            const page = Math.max(1, this.data.activityPage || 1);
 
-                table.innerHTML += `<tr>
-                    <td class="px-4 py-3 text-white/70">${this.formatDate(h.timestamp)}</td>
-                    <td class="px-4 py-3 text-white/70">${this.formatTime(h.timestamp)}</td>
-                    <td class="px-4 py-3">${h.employeeName}</td>
-                    <td class="px-4 py-3 text-white/50">${h.employeeRole || '-'}</td>
-                    <td class="px-4 py-3">${photoCell}</td>
-                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${badgeClass}">${h.action}</span></td>
-                </tr>`;
+            const filtered = this.data.history.filter(h => {
+                if (!search) return true;
+                const name = (h.employeeName || '').toLowerCase();
+                const role = (h.employeeRole || '').toLowerCase();
+                const action = (h.action || '').toLowerCase();
+                return name.includes(search) || role.includes(search) || action.includes(search);
             });
+
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            this.data.activityPage = Math.min(page, totalPages);
+
+            const start = (this.data.activityPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filtered.slice(start, end);
+
+            const loadingEl = document.getElementById('activity-loading');
+            if (loadingEl) loadingEl.classList.remove('hidden');
+
+            table.innerHTML = '';
+            if (pageItems.length === 0) {
+                table.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-white/40">No activity records</td></tr>';
+            } else {
+                pageItems.forEach((h) => {
+                    const isIn = h.action.includes('In');
+                    const isAuto = h.action.includes('Auto');
+                    let badgeClass = isIn ? 'badge-green' : 'badge-red';
+                    if (isAuto) badgeClass = 'badge-amber';
+
+                    const hasPhoto = !!h.verificationPhoto;
+                    const photoCell = hasPhoto
+                        ? `<button type="button" onclick="app.viewVerificationPhoto(${this.data.history.indexOf(h)})" class="group">
+                               <img src="${h.verificationPhoto}" class="w-10 h-10 rounded-lg object-cover border border-white/10 bg-black/30 group-hover:opacity-90" loading="lazy" />
+                           </button>`
+                        : '';
+
+                    table.innerHTML += `<tr>
+                        <td class="px-4 py-3 text-white/70">${this.formatDate(h.timestamp)}</td>
+                        <td class="px-4 py-3 text-white/70">${this.formatTime(h.timestamp)}</td>
+                        <td class="px-4 py-3">${h.employeeName}</td>
+                        <td class="px-4 py-3 text-white/50">${h.employeeRole || '-'}</td>
+                        <td class="px-4 py-3">${photoCell}</td>
+                        <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${badgeClass}">${h.action}</span></td>
+                    </tr>`;
+                });
+            }
+
+            const rangeEl = document.getElementById('activity-range');
+            if (rangeEl) {
+                rangeEl.textContent = total === 0
+                    ? 'Showing 0-0 of 0'
+                    : `Showing ${start + 1}-${Math.min(end, total)} of ${total}`;
+            }
+
+            this.renderActivityPagination(totalPages);
+
+            if (loadingEl) {
+                setTimeout(() => loadingEl.classList.add('hidden'), 150);
+            }
+        },
+
+        renderActivityPagination(totalPages) {
+            const container = document.getElementById('activity-pagination');
+            if (!container) return;
+
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const makeBtn = (label, page, disabled = false, active = false) => {
+                const btn = document.createElement('button');
+                btn.textContent = label;
+                btn.className = `px-3 py-1 rounded text-sm ${active ? 'bg-white/20 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+                if (!disabled) btn.onclick = () => this.setActivityPage(page);
+                return btn;
+            };
+
+            const prev = makeBtn('Prev', this.data.activityPage - 1, this.data.activityPage <= 1);
+            container.appendChild(prev);
+
+            const maxButtons = 5;
+            let start = Math.max(1, this.data.activityPage - 2);
+            let end = Math.min(totalPages, start + maxButtons - 1);
+            if (end - start < maxButtons - 1) {
+                start = Math.max(1, end - maxButtons + 1);
+            }
+
+            for (let i = start; i <= end; i++) {
+                container.appendChild(makeBtn(String(i), i, false, i === this.data.activityPage));
+            }
+
+            const next = makeBtn('Next', this.data.activityPage + 1, this.data.activityPage >= totalPages);
+            container.appendChild(next);
+        },
+
+        setActivityPage(page) {
+            this.data.activityPage = page;
+            this.renderActivityLog();
+        },
+
+        setActivitySearch(query) {
+            this.data.activitySearch = query || '';
+            this.data.activityPage = 1;
+            this.renderActivityLog();
         },
 
         // View verification photo in a larger modal (read-only)

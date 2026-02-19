@@ -3,7 +3,7 @@
     =====================================================
     RAJANI SUPERSTORE LTD - TIME SHEET MANAGEMENT SYSTEM
     =====================================================
-    VERSION: 1.0.4
+    VERSION: 1.0.5
     DATE: Stable Release
     
     FEATURES:
@@ -19,7 +19,7 @@
     - Location Restriction (IP + GPS)
     
     RESTORE POINT: This is the stable version.
-    Keep a backup of this file as "index-v1.0.3.html"
+    Keep a backup of this file as "index-v1.0.5.html"
     =====================================================
 -->
 <html lang="en">
@@ -438,6 +438,10 @@
                                 <i data-lucide="calendar" class="w-4 h-4"></i>
                                 <span>Weekly Report</span>
                             </button>
+                            <button onclick="app.loadAdminView('reports-custom')" id="nav-reports-custom" class="sidebar-sublink w-full flex items-center gap-3 px-4 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition text-sm">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>Custom Report</span>
+                            </button>
                         </div>
                     </div>
                     <button onclick="app.loadAdminView('settings')" id="nav-settings" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
@@ -770,11 +774,11 @@
                 <div class="flex gap-2">
                     <button onclick="app.exportCSV('weekly')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
                         <i data-lucide="download" class="w-4 h-4"></i>
-                        Export CSV
+                        Export Excel
                     </button>
-                    <button onclick="app.exportWeeklyAllEmployeesCSV()" class="px-4 py-2 btn-primary rounded-lg text-sm flex items-center gap-2 transition">
+                    <button onclick="app.exportWeeklyAllEmployeesExcel()" class="px-4 py-2 btn-primary rounded-lg text-sm flex items-center gap-2 transition">
                         <i data-lucide="file-down" class="w-4 h-4"></i>
-                        Export All Employees
+                        Export All (Excel)
                     </button>
                 </div>
             </div>
@@ -806,17 +810,91 @@
                             <tr>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Day</th>
                                 <th class="text-left px-4 py-3 text-sm font-medium">Sessions (In/Out)</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Notes</th>
                                 <th class="text-right px-4 py-3 text-sm font-medium">Total Hours</th>
                             </tr>
                         </thead>
                         <tbody id="weekly-table"></tbody>
                         <tfoot class="border-t border-white/10">
                             <tr>
-                                <td colspan="2" class="px-4 py-3 font-bold">Total Hours (Week)</td>
+                                <td colspan="3" class="px-4 py-3 font-bold">Total Hours (Week)
+                                </td>
                                 <td id="weekly-total" class="px-4 py-3 text-right font-bold text-green-400">0.00</td>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- REPORTS CUSTOM -->
+    <template id="subview-reports-custom">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Custom Report</h2>
+                    <p class="text-white/50 text-sm">Generate weekly report for one or all employees</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.exportCustomReportExcel()" id="custom-export-btn" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition hidden">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export Excel
+                    </button>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl">
+                <div class="p-4 border-b border-white/10 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="relative">
+                            <label class="block text-white/50 text-xs mb-1">Employee</label>
+                            <div class="relative">
+                                <input type="text" id="custom-emp-search" placeholder="Select employee..." class="w-full input-dark rounded-lg px-3 py-2 text-sm" onfocus="app.showCustomDropdown()" onkeyup="app.filterCustomDropdown()">
+                                <input type="hidden" id="custom-emp-id" value="all">
+                                <div id="custom-emp-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg max-h-48 overflow-y-auto hidden z-50"></div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-white/50 text-[11px] mb-1">Start Date (Sunday only)</label>
+                                    <input type="date" id="custom-start-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.validateCustomDates()" title="Start (Sunday)">
+                                </div>
+                                <div>
+                                    <label class="block text-white/50 text-[11px] mb-1">End Date (Saturday only)</label>
+                                    <input type="date" id="custom-end-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.validateCustomDates()" title="End (Saturday)">
+                                </div>
+                            </div>
+                            <p class="text-white/40 text-[11px] mt-2">Pick a weekly range: start on Sunday, end on Saturday.</p>
+                        </div>
+                    </div>
+                    <p id="custom-date-error" class="text-red-400 text-xs hidden">Invalid date range. Start must be Sunday and End must be Saturday.</p>
+                    <button onclick="app.generateCustomReport()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        Generate Report
+                    </button>
+                </div>
+                <div id="custom-report-container" class="p-4 hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-dark">
+                            <thead>
+                                <tr>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Day</th>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Sessions (In/Out)</th>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Notes</th>
+                                    <th class="text-right px-4 py-3 text-sm font-medium">Total Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custom-report-table"></tbody>
+                            <tfoot class="border-t border-white/10">
+                                <tr>
+                                    <td colspan="4" class="px-4 py-3 font-bold">Total Hours (Report)</td>
+                                    <td id="custom-report-total" class="px-4 py-3 text-right font-bold text-green-400">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1602,6 +1680,7 @@
             if (view === 'employees') this.renderAdminEmployees();
             if (view === 'reports-activity') this.renderActivityLog();
             if (view === 'reports-weekly') this.initWeeklyReport();
+            if (view === 'reports-custom') this.initCustomReport();
             if (view === 'settings') this.renderSettings();
         },
 
@@ -2837,6 +2916,59 @@
             }
         },
 
+        renderWeeklyEmployeeExcel(emp, weekStart) {
+            const { rows, totalHours, maxSessions } = this.buildWeeklyReportData(emp, weekStart);
+            const sessionHeaders = [];
+            for (let i = 1; i <= Math.max(1, maxSessions); i++) {
+                sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
+            }
+
+            const htmlRows = rows.map(r => {
+                const cells = [];
+                for (let s = 0; s < Math.max(1, maxSessions); s++) {
+                    const sess = r.info.sessions[s];
+                    if (sess) {
+                        cells.push(this.formatTime(sess.in));
+                        cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
+                    } else {
+                        cells.push('');
+                        cells.push('');
+                    }
+                }
+                return `<tr>
+                    <td>${r.dayPlain}${r.isOff ? ' (OFF)' : ''}</td>
+                    ${cells.map(c => `<td>${c}</td>`).join('')}
+                    <td>${r.hoursValue}</td>
+                    <td>${r.noteText}</td>
+                </tr>`;
+            }).join('');
+
+            return `
+                <table>
+                    <tr class="employee"><td colspan="${(Math.max(1, maxSessions) * 2) + 4}">Employee: ${emp.name || '-'} (${emp.role || '-'})</td></tr>
+                    <tr><td colspan="${(Math.max(1, maxSessions) * 2) + 4}">Week: ${this.formatDate(weekStart)} - ${this.formatDate(new Date(weekStart.getTime() + 6*24*60*60*1000))}</td></tr>
+                    <tr></tr>
+                    <tr>
+                        <th>Day</th>
+                        ${sessionHeaders.join('')}
+                        <th>Total Hours</th>
+                        <th>Notes</th>
+                    </tr>
+                    ${htmlRows}
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        ${Array(Math.max(1, maxSessions) * 2).fill('<td></td>').join('')}
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="note">Notes:</td>
+                        <td colspan="${(Math.max(1, maxSessions) * 2) + 3}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td>
+                    </tr>
+                </table>
+            `;
+        },
+
         renderActivityPagination(totalPages) {
             const container = document.getElementById('activity-pagination');
             if (!container) return;
@@ -2907,6 +3039,276 @@
             `;
             container.classList.remove('hidden');
             lucide.createIcons();
+        },
+
+        // CUSTOM REPORT
+        initCustomReport() {
+            // Populate dropdown with All + active employees
+            const search = document.getElementById('custom-emp-search');
+            const hidden = document.getElementById('custom-emp-id');
+            const dropdown = document.getElementById('custom-emp-dropdown');
+            if (!search || !hidden || !dropdown) return;
+            dropdown.innerHTML = '';
+            // All Employees option
+            const allItem = document.createElement('div');
+            allItem.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+            allItem.innerHTML = `<span class="font-semibold">All Employees</span>`;
+            allItem.onclick = () => {
+                hidden.value = 'all';
+                search.value = 'All Employees';
+                dropdown.classList.add('hidden');
+            };
+            dropdown.appendChild(allItem);
+            // Active employees
+            this.data.employees
+                .filter(e => e.active !== false)
+                .forEach(emp => {
+                    const item = document.createElement('div');
+                    item.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+                    item.innerHTML = `<img src="${emp.photo}" class="w-6 h-6 rounded-full"><span>${emp.name}</span>`;
+                    item.onclick = () => {
+                        hidden.value = emp.id;
+                        search.value = emp.name;
+                        dropdown.classList.add('hidden');
+                    };
+                    dropdown.appendChild(item);
+                });
+            // Reset fields
+            document.getElementById('custom-export-btn')?.classList.add('hidden');
+            document.getElementById('custom-report-container')?.classList.add('hidden');
+            document.getElementById('custom-report-table')?.replaceChildren();
+            document.getElementById('custom-report-total').textContent = '0.00';
+            // Clear date range display
+            const dr = document.getElementById('custom-date-range');
+            if (dr) dr.value = '';
+            // Ensure hidden fields are empty
+            const hs = document.getElementById('custom-start-date');
+            const he = document.getElementById('custom-end-date');
+            if (hs) hs.value = '';
+            if (he) he.value = '';
+        },
+
+        showCustomDropdown() {
+            document.getElementById('custom-emp-dropdown')?.classList.remove('hidden');
+        },
+
+        filterCustomDropdown() {
+            const searchVal = document.getElementById('custom-emp-search')?.value.toLowerCase() || '';
+            const dropdown = document.getElementById('custom-emp-dropdown');
+            if (!dropdown) return;
+            dropdown.querySelectorAll('div').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(searchVal) ? '' : 'none';
+            });
+            dropdown.classList.remove('hidden');
+        },
+
+        showCustomDateRange(e) {
+            e?.stopPropagation();
+            const panel = document.getElementById('custom-date-range-panel');
+            if (panel) panel.classList.remove('hidden');
+        },
+
+        applyCustomDateRange() {
+            const startPicker = document.getElementById('custom-start-date-picker');
+            const endPicker = document.getElementById('custom-end-date-picker');
+            const rangeInput = document.getElementById('custom-date-range');
+            const hs = document.getElementById('custom-start-date');
+            const he = document.getElementById('custom-end-date');
+            if (!startPicker || !endPicker || !rangeInput || !hs || !he) return;
+
+            const startVal = startPicker.value;
+            const endVal = endPicker.value;
+            // Set hidden fields
+            hs.value = startVal || '';
+            he.value = endVal || '';
+
+            // Validate immediately to enforce Sunday/Saturday
+            if (!this.validateCustomDates()) return;
+
+            // Display range in text box
+            if (startVal && endVal) {
+                const sDate = new Date(startVal);
+                const eDate = new Date(endVal);
+                const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+                rangeInput.value = `${fmt(sDate)} - ${fmt(eDate)}`;
+            } else {
+                rangeInput.value = '';
+            }
+            // Hide panel
+            const panel = document.getElementById('custom-date-range-panel');
+            if (panel) panel.classList.add('hidden');
+        },
+
+        validateCustomDates() {
+            const start = document.getElementById('custom-start-date')?.value;
+            const end = document.getElementById('custom-end-date')?.value;
+            const err = document.getElementById('custom-date-error');
+            if (!start || !end) {
+                err?.classList.add('hidden');
+                return true;
+            }
+            const s = new Date(start);
+            const e = new Date(end);
+            const valid = s.getDay() === 0 && e.getDay() === 6 && s <= e;
+            if (!valid) err?.classList.remove('hidden'); else err?.classList.add('hidden');
+            return valid;
+        },
+
+        generateCustomReport() {
+            const empIdRaw = document.getElementById('custom-emp-id')?.value;
+            const startVal = document.getElementById('custom-start-date')?.value;
+            const endVal = document.getElementById('custom-end-date')?.value;
+            const err = document.getElementById('custom-date-error');
+            if (!empIdRaw) { this.uiAlert('Please select an employee.'); return; }
+            if (!startVal || !endVal) { this.uiAlert('Please select Start and End dates.'); return; }
+            if (!this.validateCustomDates()) return;
+
+            const weekStart = new Date(startVal);
+            weekStart.setHours(0,0,0,0);
+
+            let employees = [];
+            if (empIdRaw === 'all') {
+                employees = this.data.employees.filter(e => e.active !== false);
+            } else {
+                const emp = this.data.employees.find(e => e.id === parseInt(empIdRaw));
+                if (!emp) { this.uiAlert('Employee not found.'); return; }
+                employees = [emp];
+            }
+
+            const tbody = document.getElementById('custom-report-table');
+            const container = document.getElementById('custom-report-container');
+            const exportBtn = document.getElementById('custom-export-btn');
+            if (!tbody || !container || !exportBtn) return;
+            tbody.innerHTML = '';
+
+            let grandTotal = 0;
+            employees.forEach(emp => {
+                const { rows, totalHours } = this.buildWeeklyReportData(emp, weekStart);
+                grandTotal += totalHours;
+                rows.forEach(r => {
+                    tbody.innerHTML += `<tr>
+                        <td class="px-4 py-3">${emp.name}</td>
+                        <td class="px-4 py-3">${r.dayLabel}${r.offBadge}</td>
+                        <td class="px-4 py-3 text-white/80">${r.sessionsHtml}</td>
+                        <td class="px-4 py-3">${r.notesHtml}</td>
+                        <td class="px-4 py-3 text-right">${r.hoursDisplay}</td>
+                    </tr>`;
+                });
+            });
+
+            document.getElementById('custom-report-total').textContent = grandTotal.toFixed(2);
+            container.classList.remove('hidden');
+            exportBtn.classList.remove('hidden');
+        },
+
+        exportCustomReportExcel() {
+            const startVal = document.getElementById('custom-start-date')?.value;
+            const endVal = document.getElementById('custom-end-date')?.value;
+            const empIdRaw = document.getElementById('custom-emp-id')?.value;
+            if (!startVal || !endVal || !empIdRaw) {
+                this.uiToast('Generate the report first', 'error');
+                return;
+            }
+            const weekStart = new Date(startVal);
+            const weekEnd = new Date(endVal);
+
+            let employees = [];
+            if (empIdRaw === 'all') {
+                employees = this.data.employees.filter(e => e.active !== false);
+            } else {
+                const emp = this.data.employees.find(e => e.id === parseInt(empIdRaw));
+                if (!emp) { this.uiToast('Employee not found', 'error'); return; }
+                employees = [emp];
+            }
+
+            // Determine max sessions across selected employees for table structure
+            let maxSessions = 0;
+            const byEmp = new Map();
+            employees.forEach(emp => {
+                const byDay = this.getWeeklySessionsForEmployee(emp.id, weekStart);
+                byEmp.set(emp.id, byDay);
+                Object.values(byDay).forEach(info => {
+                    const c = (info.sessions || []).length;
+                    if (c > maxSessions) maxSessions = c;
+                });
+            });
+            maxSessions = Math.max(1, maxSessions);
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                    th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+                    th { background: #f1f5f9; font-weight: bold; }
+                    .title { background: #e2e8f0; font-weight: bold; font-size: 14px; }
+                    .employee { background: #eef2ff; font-weight: bold; }
+                    .note { color: #6b7280; font-size: 11px; }
+                </style>
+            </head><body>`;
+
+            html += `<table>`;
+            html += `<tr class="title"><th colspan="${(maxSessions * 2) + 4}">Custom Report</th></tr>`;
+            html += `<tr><td><strong>Range</strong></td><td colspan="${(maxSessions * 2) + 3}">${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}</td></tr>`;
+            html += `<tr></tr>`;
+
+            employees.forEach(emp => {
+                const byDay = byEmp.get(emp.id) || {};
+                let empTotal = 0;
+
+                html += `<tr class="employee"><td colspan="${(maxSessions * 2) + 4}">Employee: ${emp.name || '-'} (${emp.role || '-'})</td></tr>`;
+
+                const sessionHeaders = [];
+                for (let i = 1; i <= maxSessions; i++) {
+                    sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
+                }
+                html += `<tr><th>Day</th>${sessionHeaders.join('')}<th>Total Hours</th><th>Notes</th></tr>`;
+
+                for (let i = 0; i < 7; i++) {
+                    const dayDate = new Date(weekStart);
+                    dayDate.setDate(dayDate.getDate() + i);
+                    const key = dayDate.toDateString();
+                    const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
+
+                    const cells = [];
+                    for (let s = 0; s < maxSessions; s++) {
+                        const sess = info.sessions[s];
+                        if (sess) {
+                            cells.push(this.formatTime(sess.in));
+                            cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
+                        } else {
+                            cells.push('');
+                            cells.push('');
+                        }
+                    }
+
+                    const hours = info.missingClockOut ? '' : info.totalHours.toFixed(2);
+                    const note = info.missingClockOut ? 'Missing clock-out' : (info.deductionNote || '');
+                    if (!info.missingClockOut) empTotal += info.totalHours;
+
+                    html += `<tr>`;
+                    html += `<td>${dayNames[i]} ${this.formatDate(dayDate)}</td>`;
+                    html += cells.map(c => `<td>${c}</td>`).join('');
+                    html += `<td>${hours}</td>`;
+                    html += `<td>${note}</td>`;
+                    html += `</tr>`;
+                }
+
+                html += `<tr><td><strong>Total</strong></td>${Array(maxSessions * 2).fill('<td></td>').join('')}<td><strong>${empTotal.toFixed(2)}</strong></td><td></td></tr>`;
+                html += `<tr><td class="note">Notes:</td><td colspan="${(maxSessions * 2) + 3}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td></tr>`;
+                html += `<tr></tr>`;
+            });
+
+            html += `</table></body></html>`;
+
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const empName = employees.length === 1 ? employees[0].name.toLowerCase().replace(/\s+/g, '_') : 'all';
+            a.href = url;
+            a.download = `custom_report_${empName}.xls`;
+            a.click();
+            URL.revokeObjectURL(url);
         },
 
         // WEEKLY REPORT
@@ -2989,6 +3391,8 @@
                     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
                 let openIn = null;
+                let missingClockOut = false;
+                let deductionMinutes = 0;
                 const sessions = [];
 
                 for (const r of dayRecords) {
@@ -3008,15 +3412,89 @@
                     sessions.push({ in: openIn, out: null, inProgress: true });
                 }
 
-                const totalHours = sessions.reduce((sum, s) => {
-                    const out = s.out ? s.out : new Date();
-                    return sum + Math.max(0, (out - s.in) / (1000 * 60 * 60));
-                }, 0);
+                // Missing clock-out rule: if any open session exists, mark missing (no hours counted)
+                if (sessions.some(s => !s.out)) {
+                    missingClockOut = true;
+                }
 
-                byDay[day.toDateString()] = { sessions, totalHours };
+                let totalHours = 0;
+
+                if (!missingClockOut) {
+                    sessions.forEach(session => {
+                        if (!session.out) return;
+                        let sessionHours = Math.max(0, (session.out - session.in) / (1000 * 60 * 60));
+                        if (sessionHours > 8) {
+                            sessionHours = Math.max(0, sessionHours - 0.5);
+                            deductionMinutes += 30;
+                        }
+                        totalHours += sessionHours;
+                    });
+                }
+
+                const deductionNote = deductionMinutes > 0 ? `${deductionMinutes} min break deducted` : '';
+                byDay[day.toDateString()] = { sessions, totalHours, missingClockOut, deductionNote, deductionMinutes };
             }
 
             return byDay;
+        },
+
+        buildWeeklyReportData(emp, weekStart) {
+            const rows = [];
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const byDay = this.getWeeklySessionsForEmployee(emp.id, weekStart);
+            let totalHours = 0;
+            let maxSessions = 0;
+
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(weekStart);
+                day.setDate(day.getDate() + i);
+                const key = day.toDateString();
+                const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
+                const isOff = (emp.offDays || []).includes(i);
+                const dayLabel = `${dayNames[i]}, ${this.formatDate(day)}`;
+                const sessionsCount = info.sessions.length;
+                maxSessions = Math.max(maxSessions, sessionsCount);
+
+                const sessionsHtml = sessionsCount
+                    ? info.sessions
+                        .map(s => `${this.formatTime(s.in)}-${s.out ? this.formatTime(s.out) : '<span class="badge-amber px-2 py-0.5 rounded text-xs">In Progress</span>'}`)
+                        .join(' <span class="text-white/30">|</span> ')
+                    : '<span class="text-white/40">-</span>';
+
+                let hoursDisplay = '<span class="text-white/40">-</span>';
+                if (!info.missingClockOut) {
+                    const hoursVal = info.totalHours.toFixed(2);
+                    hoursDisplay = `<span class="${info.totalHours >= 8 ? 'text-green-400' : 'text-white/70'} font-mono">${hoursVal}</span>`;
+                    totalHours += info.totalHours;
+                }
+
+                let noteHtml = '<span class="text-white/30 text-xs">-</span>';
+                let noteText = '';
+                if (info.missingClockOut) {
+                    noteHtml = '<span class="text-red-400 text-xs">Missing clock-out</span>';
+                    noteText = 'Missing clock-out';
+                } else if (info.deductionNote) {
+                    noteHtml = `<span class="text-amber-400 text-xs">${info.deductionNote}</span>`;
+                    noteText = info.deductionNote;
+                }
+
+                rows.push({
+                    dayLabel,
+                    dayPlain: `${dayNames[i]} ${this.formatDate(day)}`,
+                    sessionsHtml,
+                    notesHtml: noteHtml,
+                    noteText,
+                    hoursDisplay,
+                    hoursValue: info.missingClockOut ? '' : info.totalHours.toFixed(2),
+                    rowClass: isOff ? 'bg-amber-500/10' : '',
+                    offBadge: isOff ? '<span class="badge-amber px-2 py-0.5 rounded text-xs ml-2">OFF</span>' : '',
+                    info,
+                    dayDate: day,
+                    isOff
+                });
+            }
+
+            return { rows, totalHours, maxSessions };
         },
 
         renderWeeklyReport() {
@@ -3035,41 +3513,295 @@
             if (!table) return;
             table.innerHTML = '';
 
-            const byDay = this.getWeeklySessionsForEmployee(empId, weekStart);
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            let totalHours = 0;
+            const { rows, totalHours } = this.buildWeeklyReportData(emp, weekStart);
 
-            for (let i = 0; i < 7; i++) {
-                const day = new Date(weekStart);
-                day.setDate(day.getDate() + i);
-                const isOff = (emp.offDays || []).includes(i);
-
-                const key = day.toDateString();
-                const info = byDay[key] || { sessions: [], totalHours: 0 };
-                totalHours += info.totalHours;
-
-                const sessionsStr = info.sessions.length
-                    ? info.sessions
-                        .map(s => `${this.formatTime(s.in)}-${s.out ? this.formatTime(s.out) : '<span class="badge-amber px-2 py-0.5 rounded text-xs">In Progress</span>'}`)
-                        .join(' <span class="text-white/30">|</span> ')
-                    : '<span class="text-white/40">-</span>';
-
-                const rowClass = isOff ? 'bg-amber-500/10' : '';
-                const offBadge = isOff ? '<span class="badge-amber px-2 py-0.5 rounded text-xs ml-2">OFF</span>' : '';
-
-                table.innerHTML += `<tr class="${rowClass}">
-                    <td class="px-4 py-3">${dayNames[i]}, ${this.formatDate(day)}${offBadge}</td>
-                    <td class="px-4 py-3 text-white/80">${sessionsStr}</td>
-                    <td class="px-4 py-3 text-right font-mono ${info.totalHours >= 8 ? 'text-green-400' : 'text-white/70'}">${info.totalHours.toFixed(2)}</td>
+            rows.forEach(r => {
+                table.innerHTML += `<tr class="${r.rowClass}">
+                    <td class="px-4 py-3">${r.dayLabel}${r.offBadge}</td>
+                    <td class="px-4 py-3 text-white/80">${r.sessionsHtml}</td>
+                    <td class="px-4 py-3">${r.notesHtml}</td>
+                    <td class="px-4 py-3 text-right">${r.hoursDisplay}</td>
                 </tr>`;
-            }
+            });
 
             const totalEl = document.getElementById('weekly-total');
             if (totalEl) totalEl.textContent = totalHours.toFixed(2);
         },
 
+        // CUSTOM REPORT
+        initCustomReport() {
+            // Populate dropdown with All + active employees
+            const search = document.getElementById('custom-emp-search');
+            const hidden = document.getElementById('custom-emp-id');
+            const dropdown = document.getElementById('custom-emp-dropdown');
+            if (!search || !hidden || !dropdown) return;
+            dropdown.innerHTML = '';
+            // All Employees option
+            const allItem = document.createElement('div');
+            allItem.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+            allItem.innerHTML = `<span class="font-semibold">All Employees</span>`;
+            allItem.onclick = () => {
+                hidden.value = 'all';
+                search.value = 'All Employees';
+                dropdown.classList.add('hidden');
+            };
+            dropdown.appendChild(allItem);
+            // Active employees
+            this.data.employees
+                .filter(e => e.active !== false)
+                .forEach(emp => {
+                    const item = document.createElement('div');
+                    item.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+                    item.innerHTML = `<img src="${emp.photo}" class="w-6 h-6 rounded-full"><span>${emp.name}</span>`;
+                    item.onclick = () => {
+                        hidden.value = emp.id;
+                        search.value = emp.name;
+                        dropdown.classList.add('hidden');
+                    };
+                    dropdown.appendChild(item);
+                });
+            // Reset fields
+            document.getElementById('custom-export-btn')?.classList.add('hidden');
+            document.getElementById('custom-report-container')?.classList.add('hidden');
+            document.getElementById('custom-report-table')?.replaceChildren();
+            document.getElementById('custom-report-total').textContent = '0.00';
+        },
+
+        showCustomDropdown() {
+            const dd = document.getElementById('custom-emp-dropdown');
+            if (dd) dd.classList.remove('hidden');
+        },
+
+        filterCustomDropdown() {
+            const searchVal = document.getElementById('custom-emp-search')?.value.toLowerCase() || '';
+            const dropdown = document.getElementById('custom-emp-dropdown');
+            if (!dropdown) return;
+            dropdown.querySelectorAll('div').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(searchVal) ? '' : 'none';
+            });
+            dropdown.classList.remove('hidden');
+        },
+
+        validateCustomDates() {
+            const start = document.getElementById('custom-start-date')?.value;
+            const end = document.getElementById('custom-end-date')?.value;
+            const err = document.getElementById('custom-date-error');
+            if (!start || !end) {
+                err?.classList.add('hidden');
+                return true;
+            }
+            const s = new Date(start);
+            const e = new Date(end);
+            const valid = s.getDay() === 0 && e.getDay() === 6 && s <= e;
+            if (!valid) err?.classList.remove('hidden'); else err?.classList.add('hidden');
+            return valid;
+        },
+
+        generateCustomReport() {
+            const empIdRaw = document.getElementById('custom-emp-id')?.value;
+            const startVal = document.getElementById('custom-start-date')?.value;
+            const endVal = document.getElementById('custom-end-date')?.value;
+            if (!empIdRaw) { this.uiAlert('Please select an employee.'); return; }
+            if (!startVal || !endVal) { this.uiAlert('Please select Start and End dates.'); return; }
+            if (!this.validateCustomDates()) return;
+
+            const startDate = new Date(startVal);
+            const endDate = new Date(endVal);
+            startDate.setHours(0,0,0,0);
+            endDate.setHours(0,0,0,0);
+
+            let employees = [];
+            if (empIdRaw === 'all') {
+                employees = this.data.employees.filter(e => e.active !== false);
+            } else {
+                const emp = this.data.employees.find(e => e.id === parseInt(empIdRaw));
+                if (!emp) { this.uiAlert('Employee not found.'); return; }
+                employees = [emp];
+            }
+
+            const tbody = document.getElementById('custom-report-table');
+            const container = document.getElementById('custom-report-container');
+            const exportBtn = document.getElementById('custom-export-btn');
+            if (!tbody || !container || !exportBtn) return;
+            tbody.innerHTML = '';
+
+            let grandTotal = 0;
+
+            // Loop weeks from start to end (inclusive)
+            for (let e = 0; e < employees.length; e++) {
+                const emp = employees[e];
+                tbody.innerHTML += `<tr class="bg-white/5">
+                    <td colspan="5" class="px-4 py-2 font-semibold text-white">${emp.name} <span class="text-white/40 text-xs">(${emp.role || '-'})</span></td>
+                </tr>`;
+
+                let empTotal = 0;
+                let cursor = new Date(startDate);
+                while (cursor <= endDate) {
+                    const weekStart = new Date(cursor);
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 6);
+
+                    const { rows, totalHours } = this.buildWeeklyReportData(emp, weekStart);
+                    empTotal += totalHours;
+
+                    tbody.innerHTML += `<tr class="bg-white/5">
+                        <td colspan="5" class="px-4 py-2 text-white/60 text-xs">Week: ${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}</td>
+                    </tr>`;
+
+                    rows.forEach(r => {
+                        tbody.innerHTML += `<tr>
+                            <td class="px-4 py-3 text-white/40">${''}</td>
+                            <td class="px-4 py-3">${r.dayLabel}${r.offBadge}</td>
+                            <td class="px-4 py-3 text-white/80">${r.sessionsHtml}</td>
+                            <td class="px-4 py-3">${r.notesHtml}</td>
+                            <td class="px-4 py-3 text-right">${r.hoursDisplay}</td>
+                        </tr>`;
+                    });
+
+                    cursor.setDate(cursor.getDate() + 7);
+                }
+
+                grandTotal += empTotal;
+                tbody.innerHTML += `<tr class="border-t border-white/10">
+                    <td colspan="4" class="px-4 py-2 text-right text-white/60">Employee Total</td>
+                    <td class="px-4 py-2 text-right font-semibold text-green-400">${empTotal.toFixed(2)}</td>
+                </tr>`;
+            }
+
+            document.getElementById('custom-report-total').textContent = grandTotal.toFixed(2);
+            container.classList.remove('hidden');
+            exportBtn.classList.remove('hidden');
+        },
+
+        exportCustomReportExcel() {
+            const startVal = document.getElementById('custom-start-date')?.value;
+            const endVal = document.getElementById('custom-end-date')?.value;
+            const empIdRaw = document.getElementById('custom-emp-id')?.value;
+            if (!startVal || !endVal || !empIdRaw) {
+                this.uiToast('Generate the report first', 'error');
+                return;
+            }
+            const startDate = new Date(startVal);
+            const endDate = new Date(endVal);
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(0, 0, 0, 0);
+
+            let employees = [];
+            if (empIdRaw === 'all') {
+                employees = this.data.employees.filter(e => e.active !== false);
+            } else {
+                const emp = this.data.employees.find(e => e.id === parseInt(empIdRaw));
+                if (!emp) { this.uiToast('Employee not found', 'error'); return; }
+                employees = [emp];
+            }
+
+            // Determine max sessions across all selected employees and all weeks in range
+            let maxSessions = 0;
+            const byEmpWeeks = new Map();
+            employees.forEach(emp => {
+                const weeks = [];
+                let cursor = new Date(startDate);
+                while (cursor <= endDate) {
+                    const weekStart = new Date(cursor);
+                    const byDay = this.getWeeklySessionsForEmployee(emp.id, weekStart);
+                    Object.values(byDay).forEach(info => {
+                        const c = (info.sessions || []).length;
+                        if (c > maxSessions) maxSessions = c;
+                    });
+                    weeks.push({ weekStart, byDay });
+                    cursor.setDate(cursor.getDate() + 7);
+                }
+                byEmpWeeks.set(emp.id, weeks);
+            });
+            maxSessions = Math.max(1, maxSessions);
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                    th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+                    th { background: #f1f5f9; font-weight: bold; }
+                    .title { background: #dbe2ea; font-weight: bold; font-size: 14px; }
+                    .employee { background: #cbd5e1; font-weight: bold; }
+                    .week { background: #e5e7eb; font-weight: bold; color: #334155; }
+                    .total { background: #F1A983; font-weight: bold; }
+                    .note { color: #6b7280; font-size: 11px; }
+                </style>
+            </head><body>`;
+
+            html += `<table>`;
+            html += `<tr class="title"><th colspan="${(maxSessions * 2) + 4}">Custom Report</th></tr>`;
+            html += `<tr class="week"><td colspan="${(maxSessions * 2) + 4}">Range: ${this.formatDate(startDate)} - ${this.formatDate(endDate)}</td></tr>`;
+            html += `</table><br>`;
+
+            employees.forEach(emp => {
+                const weeks = byEmpWeeks.get(emp.id) || [];
+                let empTotal = 0;
+
+                html += `<table>`;
+                html += `<tr class="employee"><td colspan="${(maxSessions * 2) + 4}">Employee: ${emp.name || '-'} (${emp.role || '-'})</td></tr>`;
+                const sessionHeaders = [];
+                for (let i = 1; i <= maxSessions; i++) {
+                    sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
+                }
+                html += `<tr><th>Day</th>${sessionHeaders.join('')}<th>Total Hours</th><th>Notes</th></tr>`;
+
+                weeks.forEach(({ weekStart, byDay }) => {
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 6);
+                    html += `<tr class="week"><td colspan="${(maxSessions * 2) + 4}">Week: ${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}</td></tr>`;
+
+                    for (let i = 0; i < 7; i++) {
+                        const dayDate = new Date(weekStart);
+                        dayDate.setDate(dayDate.getDate() + i);
+                        const key = dayDate.toDateString();
+                        const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
+
+                        const cells = [];
+                        for (let s = 0; s < maxSessions; s++) {
+                            const sess = info.sessions[s];
+                            if (sess) {
+                                cells.push(this.formatTime(sess.in));
+                                cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
+                            } else {
+                                cells.push('');
+                                cells.push('');
+                            }
+                        }
+
+                        const hours = info.missingClockOut ? '' : info.totalHours.toFixed(2);
+                        const note = info.missingClockOut ? 'Missing clock-out' : (info.deductionNote || '');
+                        if (!info.missingClockOut) empTotal += info.totalHours;
+
+                        html += `<tr>`;
+                        html += `<td>${dayNames[i]} ${this.formatDate(dayDate)}</td>`;
+                        html += cells.map(c => `<td>${c}</td>`).join('');
+                        html += `<td>${hours}</td>`;
+                        html += `<td>${note}</td>`;
+                        html += `</tr>`;
+                    }
+                });
+
+                html += `<tr class="total"><td><strong>Total</strong></td>${Array(maxSessions * 2).fill('<td></td>').join('')}<td><strong>${empTotal.toFixed(2)}</strong></td><td></td></tr>`;
+                html += `<tr><td class="note">Notes:</td><td colspan="${(maxSessions * 2) + 3}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td></tr>`;
+                html += `</table><br>`;
+            });
+
+            html += `</body></html>`;
+
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `custom_report_${this.formatDate(startDate).replace(/\//g,'-')}_to_${this.formatDate(endDate).replace(/\//g,'-')}.xls`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
         // SETTINGS
         renderSettings() {
+            this.updateThemeChecks();
             this.updateThemeChecks();
             // Load branding from app.data (synced from Firebase)
             const branding = this.data.branding || {};
@@ -3231,6 +3963,27 @@
         },
 
         // CSV / IMPORT-EXPORT HELPERS
+        exportWeeklyExcelForEmployee(emp, weekStart) {
+            const tableHtml = this.renderWeeklyEmployeeExcel(emp, weekStart);
+            const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    table { border-collapse: collapse; width: 100%; font-size: 12px; margin-bottom: 16px; }
+                    th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+                    th { background: #f1f5f9; font-weight: bold; }
+                    .employee { background: #eef2ff; font-weight: bold; }
+                    .note { color: #6b7280; font-size: 11px; }
+                </style>
+            </head><body>${tableHtml}</body></html>`;
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `weekly_${emp.name.toLowerCase().replace(/\s+/g, '_')}.xls`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
         exportCSV(type) {
             let csv = '';
             let filename = '';
@@ -3256,35 +4009,54 @@
 
                 const byDay = this.getWeeklySessionsForEmployee(empId, weekStart);
 
-                const dayKeys = Object.keys(byDay);
+                // Determine max sessions in week (for columns)
                 let maxSessions = 0;
-                dayKeys.forEach(k => {
-                    const count = (byDay[k]?.sessions || []).length;
+                Object.values(byDay).forEach(info => {
+                    const count = (info.sessions || []).length;
                     if (count > maxSessions) maxSessions = count;
                 });
                 maxSessions = Math.max(1, maxSessions);
 
-                const dynamicCols = [];
-                for (let i = 1; i <= maxSessions; i++) {
-                    dynamicCols.push(`In${i}`);
-                    dynamicCols.push(`Out${i}`);
-                }
-
-                csv = `Weekly Report for ${emp.name}\nWeek,${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}\n\n`;
-                csv += ['Day', ...dynamicCols, 'Total Hours'].join(',') + '\n';
-
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 let totalHours = 0;
 
+                // Build Excel (HTML) string
+                let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+                    <style>
+                        body { font-family: Arial, sans-serif; }
+                        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                        th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+                        th { background: #f1f5f9; font-weight: bold; }
+                        .title { background: #e2e8f0; font-weight: bold; font-size: 14px; }
+                        .employee { background: #eef2ff; font-weight: bold; }
+                        .note { color: #6b7280; font-size: 11px; }
+                    </style>
+                </head><body>`;
+
+                // Title + Week info
+                html += `<table>`;
+                html += `<tr class="title"><th colspan="${(maxSessions * 2) + 3}">Weekly Report</th></tr>`;
+                html += `<tr class="employee"><td>Employee</td><td colspan="${(maxSessions * 2) + 2}">${emp.name}</td></tr>`;
+                html += `<tr><td><strong>Week</strong></td><td colspan="${(maxSessions * 2) + 2}">${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}</td></tr>`;
+                html += `<tr></tr>`;
+
+                // Headers
+                const sessionHeaders = [];
+                for (let i = 1; i <= maxSessions; i++) {
+                    sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
+                }
+                html += `<tr><th>Day</th>${sessionHeaders.join('')}<th>Total Hours</th><th>Notes</th></tr>`;
+
+                // Rows per day
                 for (let i = 0; i < 7; i++) {
                     const dayDate = new Date(weekStart);
                     dayDate.setDate(dayDate.getDate() + i);
                     const key = dayDate.toDateString();
-                    const dayInfo = byDay[key] || { sessions: [], totalHours: 0 };
+                    const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
 
                     const cells = [];
                     for (let s = 0; s < maxSessions; s++) {
-                        const sess = dayInfo.sessions[s];
+                        const sess = info.sessions[s];
                         if (sess) {
                             cells.push(this.formatTime(sess.in));
                             cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
@@ -3294,12 +4066,33 @@
                         }
                     }
 
-                    totalHours += dayInfo.totalHours;
-                    csv += `${dayNames[i]} ${this.formatDate(dayDate)},${cells.map(c => this.csvEscape(c)).join(',')},${dayInfo.totalHours.toFixed(2)}\n`;
+                    const dayHours = info.missingClockOut ? '' : info.totalHours.toFixed(2);
+                    const note = info.missingClockOut ? 'Missing clock-out' : (info.deductionNote || '');
+                    if (!info.missingClockOut) {
+                        totalHours += info.totalHours;
+                    }
+
+                    html += `<tr>`;
+                    html += `<td>${dayNames[i]} ${this.formatDate(dayDate)}</td>`;
+                    html += cells.map(c => `<td>${c}</td>`).join('');
+                    html += `<td>${dayHours}</td>`;
+                    html += `<td>${note}</td>`;
+                    html += `</tr>`;
                 }
 
-                csv += `\nTOTAL,${Array(maxSessions * 2).fill('').join(',')},${totalHours.toFixed(2)}\n`;
-                filename = `weekly_${emp.name.toLowerCase().replace(/\s+/g, '_')}.csv`;
+                // Total + Notes
+                html += `<tr><td><strong>Total</strong></td>${Array(maxSessions * 2).fill('<td></td>').join('')}<td><strong>${totalHours.toFixed(2)}</strong></td><td></td></tr>`;
+                html += `<tr><td class="note">Notes:</td><td colspan="${(maxSessions * 2) + 2}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td></tr>`;
+                html += `</table></body></html>`;
+
+                const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `weekly_${emp.name.toLowerCase().replace(/\s+/g, '_')}.xls`;
+                a.click();
+                URL.revokeObjectURL(url);
+                return;
             }
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = URL.createObjectURL(blob);
@@ -3312,7 +4105,7 @@
 
         // Export weekly timesheets for ALL employees in a single CSV
         // Includes multiple in/out pairs per day (In1/Out1...InN/OutN) and total hours per employee.
-        exportWeeklyAllEmployeesCSV() {
+        exportWeeklyAllEmployeesExcel() {
             const dateVal = document.getElementById('weekly-date')?.value;
             if (!dateVal) {
                 this.uiToast('Please select a week date first', 'error');
@@ -3327,7 +4120,6 @@
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekEnd.getDate() + 6);
 
-            // Build byDay sessions for each employee and find max sessions across ALL employees & days.
             const byEmp = new Map();
             let maxSessions = 0;
 
@@ -3342,66 +4134,76 @@
 
             maxSessions = Math.max(1, maxSessions);
 
-            const dynamicCols = [];
-            for (let i = 1; i <= maxSessions; i++) {
-                dynamicCols.push(`In${i}`);
-                dynamicCols.push(`Out${i}`);
-            }
-
-            const headers = ['Employee', 'Role', 'Day', ...dynamicCols, 'Total Hours'];
-            let csv = `All Employees Weekly Timesheets\nWeek,${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}\n\n`;
-            csv += headers.join(',') + '\n';
-
             const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                    th, td { border: 1px solid #333; padding: 6px; text-align: left; }
+                    th { background: #f1f5f9; font-weight: bold; }
+                    .title { background: #e2e8f0; font-weight: bold; font-size: 14px; }
+                    .employee { background: #eef2ff; font-weight: bold; }
+                    .note { color: #6b7280; font-size: 11px; }
+                </style>
+            </head><body>`;
 
             this.data.employees.forEach(emp => {
                 const byDay = byEmp.get(emp.id) || {};
                 let empTotal = 0;
 
+                html += `<table>`;
+                html += `<tr class="employee"><td colspan="${(maxSessions * 2) + 4}">Employee: ${emp.name || '-'} (${emp.role || '-'})</td></tr>`;
+                html += `<tr><td colspan="${(maxSessions * 2) + 4}">Week: ${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}</td></tr>`;
+
+                const sessionHeaders = [];
+                for (let i = 1; i <= maxSessions; i++) {
+                    sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
+                }
+                html += `<tr><th>Day</th>${sessionHeaders.join('')}<th>Total Hours</th><th>Notes</th></tr>`;
+
                 for (let i = 0; i < 7; i++) {
                     const dayDate = new Date(weekStart);
                     dayDate.setDate(dayDate.getDate() + i);
                     const key = dayDate.toDateString();
-                    const dayInfo = byDay[key] || { sessions: [], totalHours: 0 };
+                    const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
 
                     const cells = [];
                     for (let s = 0; s < maxSessions; s++) {
-                        const sess = dayInfo.sessions[s];
+                        const sess = info.sessions[s];
                         if (sess) {
-                            cells.push(this.csvEscape(this.formatTime(sess.in)));
-                            cells.push(this.csvEscape(sess.out ? this.formatTime(sess.out) : 'In Progress'));
+                            cells.push(this.formatTime(sess.in));
+                            cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
                         } else {
                             cells.push('');
                             cells.push('');
                         }
                     }
 
-                    empTotal += dayInfo.totalHours;
+                    const hours = info.missingClockOut ? '' : info.totalHours.toFixed(2);
+                    const note = info.missingClockOut ? 'Missing clock-out' : (info.deductionNote || '');
+                    if (!info.missingClockOut) empTotal += info.totalHours;
 
-                    csv += [
-                        this.csvEscape(emp.name),
-                        this.csvEscape(emp.role || ''),
-                        this.csvEscape(`${dayNames[i]} ${this.formatDate(dayDate)}`),
-                        ...cells,
-                        dayInfo.totalHours.toFixed(2)
-                    ].join(',') + '\n';
+                    html += `<tr>`;
+                    html += `<td>${dayNames[i]} ${this.formatDate(dayDate)}</td>`;
+                    html += cells.map(c => `<td>${c}</td>`).join('');
+                    html += `<td>${hours}</td>`;
+                    html += `<td>${note}</td>`;
+                    html += `</tr>`;
                 }
 
-                // Total row per employee
-                csv += [
-                    this.csvEscape(emp.name),
-                    this.csvEscape(emp.role || ''),
-                    'TOTAL',
-                    ...Array(maxSessions * 2).fill(''),
-                    empTotal.toFixed(2)
-                ].join(',') + '\n\n';
+                html += `<tr><td><strong>Total</strong></td>${Array(maxSessions * 2).fill('<td></td>').join('')}<td><strong>${empTotal.toFixed(2)}</strong></td><td></td></tr>`;
+                html += `<tr><td class="note">Notes:</td><td colspan="${(maxSessions * 2) + 3}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td></tr>`;
+                html += `</table><br>`;
             });
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            html += `</body></html>`;
+
+            const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `weekly_all_employees_${this.formatDate(weekStart).replace(/\//g,'-')}.csv`;
+            a.download = `weekly_all_employees_${this.formatDate(weekStart).replace(/\//g,'-')}.xls`;
             a.click();
             URL.revokeObjectURL(url);
         },

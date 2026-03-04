@@ -26,8 +26,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rajani Superstore Ltd - Time Sheet Management</title>
-    <link rel="icon" type="image/png" href="https://www.rajanis.co.uk/skins/rajanis2019/images/favicon.png">
+    <title>Time Sheet Management</title>
+    <link id="brand-favicon" rel="icon" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -157,12 +157,10 @@
             </div>
             <header class="relative z-10 p-6 flex justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div id="home-logo-container" class="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center shadow-lg">
-                        <i data-lucide="shopping-bag" class="w-6 h-6 text-white"></i>
-                    </div>
+                    <div id="home-logo-container" class="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center shadow-lg"></div>
                     <div>
-                        <h1 id="home-brand-name" class="text-xl font-bold">Rajani Superstore</h1>
-                        <p id="home-brand-tagline" class="text-xs text-white/50">Time Management</p>
+                        <h1 id="home-brand-name" class="text-xl font-bold"></h1>
+                        <p id="home-brand-tagline" class="text-xs text-white/50"></p>
                     </div>
                 </div>
                 <div id="home-clock" class="font-mono text-lg bg-white/10 px-4 py-2 rounded-lg">--:--</div>
@@ -170,7 +168,7 @@
             <main class="relative z-10 flex-grow flex flex-col items-center justify-center p-6">
                 <div class="text-center mb-12">
                     <h2 class="text-3xl md:text-4xl font-medium mb-2 text-white/70">Welcome To</h2>
-                    <h1 id="home-welcome-brand" class="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-[var(--theme-accent)] via-white to-[var(--theme-primary)] bg-clip-text text-transparent">Rajani Superstore</h1>
+                    <h1 id="home-welcome-brand" class="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-[var(--theme-accent)] via-white to-[var(--theme-primary)] bg-clip-text text-transparent"></h1>
                     <p class="text-white/50 text-lg">Select your portal to continue</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
@@ -191,7 +189,7 @@
                 </div>
             </main>
             <footer class="relative z-10 p-6 text-center text-white/30 text-sm">
-                © <span id="home-year"></span> <span id="home-footer-brand">Rajani Superstore Ltd</span>. All rights reserved.
+                © <span id="home-year"></span> <span id="home-footer-brand"></span>. All rights reserved.
             </footer>
         </div>
     </template>
@@ -293,11 +291,9 @@
                 <div class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl">
                     <div class="flex items-center justify-between mb-4">
                         <div class="flex items-center gap-3">
-                            <div id="sr-brand-logo-container" class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center">
-                                <i data-lucide="shopping-bag" class="w-5 h-5 text-white"></i>
-                            </div>
+                            <div id="sr-brand-logo-container" class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center"></div>
                             <div>
-                                <h2 id="sr-brand-name" class="text-lg font-semibold">Rajani Superstore</h2>
+                                <h2 id="sr-brand-name" class="text-lg font-semibold"></h2>
                                 <p class="text-white/50 text-xs">Employee Details Form</p>
                             </div>
                         </div>
@@ -403,12 +399,10 @@
             <aside id="admin-sidebar" class="w-64 bg-slate-900 border-r border-white/10 flex-col hidden md:flex">
                 <div class="p-6 border-b border-white/10">
                     <div class="flex items-center gap-3">
-                        <div id="sidebar-logo" class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center">
-                            <i data-lucide="box" class="w-5 h-5"></i>
-                        </div>
+                        <div id="sidebar-logo" class="w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)] flex items-center justify-center"></div>
                         <div>
-                            <h1 id="sidebar-brand" class="font-bold">Rajani Admin</h1>
-                            <p class="text-white/40 text-xs">Management System</p>
+                            <h1 id="sidebar-brand" class="font-bold"></h1>
+                            <p id="sidebar-tagline" class="text-white/40 text-xs"></p>
                         </div>
                     </div>
                 </div>
@@ -459,7 +453,7 @@
             <!-- Mobile Header -->
             <div class="flex-grow flex flex-col">
                 <header class="md:hidden p-4 bg-slate-900 border-b border-white/10 flex items-center justify-between">
-                    <span id="mobile-brand" class="font-bold">Rajani Admin</span>
+                    <span id="mobile-brand" class="font-bold"></span>
                     <button onclick="document.getElementById('admin-sidebar').classList.toggle('hidden');document.getElementById('admin-sidebar').classList.toggle('fixed');document.getElementById('admin-sidebar').classList.toggle('inset-0');document.getElementById('admin-sidebar').classList.toggle('z-50');" class="p-2 hover:bg-white/10 rounded-lg">
                         <i data-lucide="menu" class="w-6 h-6"></i>
                     </button>
@@ -948,46 +942,25 @@
                         </div>
                     </div>
                 </div>
-                <!-- Location Restriction for Clock In/Out -->
+                <!-- Location Restriction (GPS-Based) -->
                 <div class="glass-card rounded-xl overflow-hidden">
                     <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
-                        <span class="flex items-center gap-3 font-medium"><i data-lucide="map-pin" class="w-5 h-5 text-[var(--theme-accent)]"></i> Location Restriction</span>
-                        <span id="location-restrict-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Disabled</span>
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="map-pin" class="w-5 h-5 text-[var(--theme-accent)]"></i> Location Restriction (GPS)</span>
+                        <span id="gps-restrict-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Disabled</span>
                     </button>
                     <div class="accordion-content">
                         <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
-                            <!-- Enable/Disable Toggle -->
                             <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
                                 <div>
-                                    <p class="text-sm font-medium">Enable Location Restriction</p>
-                                    <p class="text-xs text-white/50">Requires BOTH IP and GPS match to access portal</p>
+                                    <p class="text-sm font-medium">Enable GPS Restriction</p>
+                                    <p class="text-xs text-white/50">Employees must be within the configured GPS radius</p>
                                 </div>
-                                <button id="location-restrict-toggle" onclick="app.toggleLocationRestriction()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
-                                    <span id="location-toggle-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                <button id="gps-restrict-toggle" onclick="app.toggleGpsRestriction()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="gps-toggle-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
                                 </button>
                             </div>
-                            <!-- Current IP Display -->
                             <div class="p-3 rounded-lg bg-white/5">
-                                <div class="flex items-center justify-between mb-2">
-                                    <p class="text-xs text-white/50">Your Current IP Address</p>
-                                    <button onclick="app.fetchCurrentIP()" class="text-xs text-[var(--theme-accent)] hover:underline">Refresh</button>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <code id="current-ip-address" class="flex-1 text-sm font-mono text-cyan-400 bg-black/30 px-2 py-1.5 rounded">Loading...</code>
-                                    <button onclick="app.useCurrentIPAsStore()" class="px-2 py-1.5 rounded bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs transition" title="Use as Store IP">
-                                        <i data-lucide="check" class="w-4 h-4"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <!-- Store IP Address -->
-                            <div>
-                                <label class="block text-white/50 text-xs mb-1">Store IP Address (Required)</label>
-                                <input type="text" id="store-ip-address" class="w-full input-dark rounded-lg px-3 py-2 text-sm font-mono" placeholder="e.g., 203.45.67.89">
-                                <p class="text-xs text-white/40 mt-1">Find your store's IP at <a href="https://whatismyip.com" target="_blank" class="text-[var(--theme-accent)] hover:underline">whatismyip.com</a></p>
-                            </div>
-                            <!-- GPS Coordinates (Required) -->
-                            <div class="p-3 rounded-lg bg-white/5">
-                                <p class="text-sm font-medium mb-2">GPS Location (Required)</p>
+                                <p class="text-sm font-medium mb-2">GPS Location</p>
                                 <div class="grid grid-cols-2 gap-2 mb-2">
                                     <div>
                                         <label class="block text-white/40 text-xs mb-1">Latitude</label>
@@ -1006,12 +979,46 @@
                                     <i data-lucide="crosshair" class="w-3 h-3"></i> Get Current GPS Location
                                 </button>
                             </div>
-                            <!-- Save Button -->
-                            <button onclick="app.saveLocationSettings()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save Location Settings</button>
-                            <!-- Info Box -->
-                            <div class="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                                <p class="text-xs text-amber-400"><i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i> Strict Mode: Employees must match BOTH IP Address AND GPS Location to access the portal.</p>
+                            <button onclick="app.saveGpsSettings()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save GPS Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Restriction (IP-Based) -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="network" class="w-5 h-5 text-[var(--theme-accent)]"></i> Network Restriction (IP)</span>
+                        <span id="ip-restrict-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Disabled</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div>
+                                    <p class="text-sm font-medium">Enable IP Restriction</p>
+                                    <p class="text-xs text-white/50">Employees must be on the allowed network IP</p>
+                                </div>
+                                <button id="ip-restrict-toggle" onclick="app.toggleNetworkRestriction()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="ip-toggle-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
                             </div>
+                            <div class="p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs text-white/50">Your Current IP Address</p>
+                                    <button onclick="app.fetchCurrentIP()" class="text-xs text-[var(--theme-accent)] hover:underline">Refresh</button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <code id="current-ip-address" class="flex-1 text-sm font-mono text-cyan-400 bg-black/30 px-2 py-1.5 rounded">Loading...</code>
+                                    <button onclick="app.useCurrentIPAsStore()" class="px-2 py-1.5 rounded bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs transition" title="Use as Store IP">
+                                        <i data-lucide="check" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Allowed Store IP Address</label>
+                                <input type="text" id="store-ip-address" class="w-full input-dark rounded-lg px-3 py-2 text-sm font-mono" placeholder="e.g., 203.45.67.89">
+                                <p class="text-xs text-white/40 mt-1">Find your store's IP at <a href="https://whatismyip.com" target="_blank" class="text-[var(--theme-accent)] hover:underline">whatismyip.com</a></p>
+                            </div>
+                            <button onclick="app.saveNetworkSettings()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save IP Settings</button>
                         </div>
                     </div>
                 </div>
@@ -1126,6 +1133,34 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Reset Password -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="lock" class="w-5 h-5 text-[var(--theme-accent)]"></i> Reset Password</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 space-y-3 mt-3">
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Old Password *</label>
+                                <input id="admin-old-password" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="••••">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">New Password *</label>
+                                    <input id="admin-new-password" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="••••">
+                                </div>
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">Confirm New Password *</label>
+                                    <input id="admin-confirm-password" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="••••">
+                                </div>
+                            </div>
+                            <button onclick="app.updateAdminPassword()" class="w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm transition">Update Password</button>
+                            <p class="text-white/30 text-[11px]">Password must be exactly 4 digits.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </template>
@@ -1150,13 +1185,16 @@
             employeesPage: 1,
             employeesPageSize: 10,
             employeesSort: { sortKey: 'name', sortDir: 'asc' },
+            gpsRestrictionEnabled: false,
+            ipRestrictionEnabled: false,
             backups: [],
             employeesLoaded: false,
             pinVerificationEnabled: true,
             cameraVerificationEnabled: false,
             activityPage: 1,
             activityPageSize: 50,
-            activitySearch: ''
+            activitySearch: '',
+            adminPasswordHash: null
         },
 
         // Decode default Firebase config
@@ -1191,101 +1229,145 @@
 
         // LOCATION RESTRICTION
         loadLocationSettings() {
-            // Initialize with defaults - Firebase listener will update
             this.data.locationSettings = {
-                enabled: false,
                 storeIP: '',
                 latitude: '',
                 longitude: '',
                 radius: 100
             };
+            this.data.gpsRestrictionEnabled = false;
+            this.data.ipRestrictionEnabled = false;
         },
 
-        saveLocationSettings() {
-            const storeIP = document.getElementById('store-ip-address')?.value.trim() || '';
+        saveGpsSettings() {
             const latitude = document.getElementById('store-latitude')?.value.trim() || '';
             const longitude = document.getElementById('store-longitude')?.value.trim() || '';
             const radius = parseInt(document.getElementById('store-radius')?.value) || 100;
 
-            if (!storeIP && (!latitude || !longitude)) {
-                this.uiAlert('Please enter at least a Store IP Address or GPS coordinates.');
+            if (!latitude || !longitude) {
+                this.uiAlert('Please enter GPS latitude and longitude.');
                 return;
             }
 
             this.data.locationSettings = {
-                enabled: this.data.locationSettings?.enabled || false,
-                storeIP,
+                ...this.data.locationSettings,
                 latitude,
                 longitude,
                 radius
             };
 
-            // Save ONLY to Firebase
             if (this.data.db) {
-                this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
-                this.uiToast('Location settings saved!', 'success');
+                this.data.db.ref('rajani_location_settings').set({
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+                this.uiToast('GPS settings saved!', 'success');
             } else {
                 this.uiAlert('Cannot save - Firebase not connected');
             }
         },
 
-        toggleLocationRestriction() {
-            const currentlyEnabled = this.data.locationSettings?.enabled || false;
-            
-            if (!currentlyEnabled) {
-                // Trying to enable - check if settings are configured
-                const settings = this.data.locationSettings || {};
-                if (!settings.storeIP && (!settings.latitude || !settings.longitude)) {
-                    this.uiAlert('Please configure Store IP or GPS coordinates first, then save before enabling.');
-                    return;
-                }
-                
-                this.uiConfirm('Enable Location Restriction?', 'Employees will only be able to clock in/out from the configured store location.', () => {
-                    this.data.locationSettings.enabled = true;
-                    // Save ONLY to Firebase
-                    if (this.data.db) {
-                        this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
-                    }
-                    this.updateLocationRestrictionUI();
-                    this.uiToast('Location restriction enabled', 'success');
+        saveNetworkSettings() {
+            const storeIP = document.getElementById('store-ip-address')?.value.trim() || '';
+            if (!storeIP) {
+                this.uiAlert('Please enter a Store IP Address.');
+                return;
+            }
+
+            this.data.locationSettings = {
+                ...this.data.locationSettings,
+                storeIP
+            };
+
+            if (this.data.db) {
+                this.data.db.ref('rajani_location_settings').set({
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
                 });
+                this.uiToast('IP settings saved!', 'success');
             } else {
-                this.data.locationSettings.enabled = false;
-                // Save ONLY to Firebase
-                if (this.data.db) {
-                    this.data.db.ref('rajani_location_settings').set(this.data.locationSettings);
-                }
-                this.updateLocationRestrictionUI();
-                this.uiToast('Location restriction disabled', 'info');
+                this.uiAlert('Cannot save - Firebase not connected');
             }
         },
 
-        updateLocationRestrictionUI() {
-            const toggle = document.getElementById('location-restrict-toggle');
-            const knob = document.getElementById('location-toggle-knob');
-            const badge = document.getElementById('location-restrict-badge');
-            const enabled = this.data.locationSettings?.enabled || false;
+        toggleGpsRestriction() {
+            const settings = this.data.locationSettings || {};
+            if (!settings.latitude || !settings.longitude) {
+                this.uiAlert('Please configure GPS coordinates first, then save before enabling.');
+                return;
+            }
+            this.data.gpsRestrictionEnabled = !this.data.gpsRestrictionEnabled;
+            if (this.data.db) {
+                this.data.db.ref('rajani_location_settings').set({
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+            }
+            this.updateRestrictionUI();
+            this.uiToast(`GPS restriction ${this.data.gpsRestrictionEnabled ? 'enabled' : 'disabled'}`, 'success');
+        },
 
-            if (toggle && knob) {
-                if (enabled) {
-                    toggle.classList.remove('bg-white/20');
-                    toggle.classList.add('bg-green-500');
-                    knob.style.transform = 'translateX(24px)';
+        toggleNetworkRestriction() {
+            const settings = this.data.locationSettings || {};
+            if (!settings.storeIP) {
+                this.uiAlert('Please configure Store IP first, then save before enabling.');
+                return;
+            }
+            this.data.ipRestrictionEnabled = !this.data.ipRestrictionEnabled;
+            if (this.data.db) {
+                this.data.db.ref('rajani_location_settings').set({
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+            }
+            this.updateRestrictionUI();
+            this.uiToast(`IP restriction ${this.data.ipRestrictionEnabled ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        updateRestrictionUI() {
+            const gpsToggle = document.getElementById('gps-restrict-toggle');
+            const gpsKnob = document.getElementById('gps-toggle-knob');
+            const gpsBadge = document.getElementById('gps-restrict-badge');
+            const ipToggle = document.getElementById('ip-restrict-toggle');
+            const ipKnob = document.getElementById('ip-toggle-knob');
+            const ipBadge = document.getElementById('ip-restrict-badge');
+
+            if (gpsToggle && gpsKnob) {
+                if (this.data.gpsRestrictionEnabled) {
+                    gpsToggle.classList.remove('bg-white/20');
+                    gpsToggle.classList.add('bg-green-500');
+                    gpsKnob.style.transform = 'translateX(24px)';
                 } else {
-                    toggle.classList.add('bg-white/20');
-                    toggle.classList.remove('bg-green-500');
-                    knob.style.transform = 'translateX(0)';
+                    gpsToggle.classList.add('bg-white/20');
+                    gpsToggle.classList.remove('bg-green-500');
+                    gpsKnob.style.transform = 'translateX(0)';
                 }
             }
 
-            if (badge) {
-                if (enabled) {
-                    badge.textContent = 'Enabled';
-                    badge.className = 'px-2 py-0.5 rounded text-xs badge-green';
+            if (gpsBadge) {
+                gpsBadge.textContent = this.data.gpsRestrictionEnabled ? 'Enabled' : 'Disabled';
+                gpsBadge.className = `px-2 py-0.5 rounded text-xs ${this.data.gpsRestrictionEnabled ? 'badge-green' : 'badge-gray'}`;
+            }
+
+            if (ipToggle && ipKnob) {
+                if (this.data.ipRestrictionEnabled) {
+                    ipToggle.classList.remove('bg-white/20');
+                    ipToggle.classList.add('bg-green-500');
+                    ipKnob.style.transform = 'translateX(24px)';
                 } else {
-                    badge.textContent = 'Disabled';
-                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                    ipToggle.classList.add('bg-white/20');
+                    ipToggle.classList.remove('bg-green-500');
+                    ipKnob.style.transform = 'translateX(0)';
                 }
+            }
+
+            if (ipBadge) {
+                ipBadge.textContent = this.data.ipRestrictionEnabled ? 'Enabled' : 'Disabled';
+                ipBadge.className = `px-2 py-0.5 rounded text-xs ${this.data.ipRestrictionEnabled ? 'badge-green' : 'badge-gray'}`;
             }
         },
 
@@ -1369,79 +1451,83 @@
 
         async checkLocationRestriction() {
             const settings = this.data.locationSettings;
-            if (!settings || !settings.enabled) {
+            const gpsEnabled = this.data.gpsRestrictionEnabled;
+            const ipEnabled = this.data.ipRestrictionEnabled;
+
+            if (!settings || (!gpsEnabled && !ipEnabled)) {
                 return { allowed: true };
             }
 
-            let ipMatch = false;
-            let gpsMatch = false;
+            let ipMatch = !ipEnabled;
+            let gpsMatch = !gpsEnabled;
             let failureReasons = [];
 
-            // 1. Check IP (Required)
-            if (settings.storeIP) {
-                try {
-                    const response = await fetch('https://api.ipify.org?format=json');
-                    const data = await response.json();
-                    const currentIP = data.ip;
-                    
-                    if (currentIP === settings.storeIP) {
-                        ipMatch = true;
-                    } else {
-                        failureReasons.push(`🏠 Nice try! But you're not at the store... we can tell! 😏`);
+            // IP check (if enabled)
+            if (ipEnabled) {
+                if (settings.storeIP) {
+                    try {
+                        const response = await fetch('https://api.ipify.org?format=json');
+                        const data = await response.json();
+                        const currentIP = data.ip;
+                        if (currentIP === settings.storeIP) {
+                            ipMatch = true;
+                        } else {
+                            failureReasons.push('🏠 You need to be on the store network to clock in.');
+                        }
+                    } catch (e) {
+                        console.error('IP check failed:', e);
+                        failureReasons.push('🔌 Could not verify network. Please try again.');
                     }
-                } catch (e) {
-                    console.error('IP check failed:', e);
-                    failureReasons.push(`🔌 Oops! We couldn't verify your connection. Try again!`);
+                } else {
+                    failureReasons.push('⚙️ Store IP not set. Please contact your manager.');
                 }
-            } else {
-                failureReasons.push(`⚙️ Store location not set up yet. Contact your manager!`);
             }
 
-            // 2. Check GPS (Required)
-            if (settings.latitude && settings.longitude) {
-                try {
-                    await new Promise((resolve, reject) => {
-                        if (!navigator.geolocation) {
-                            failureReasons.push('GPS not supported');
-                            resolve();
-                            return;
-                        }
+            // GPS check (if enabled)
+            if (gpsEnabled) {
+                if (settings.latitude && settings.longitude) {
+                    try {
+                        await new Promise((resolve) => {
+                            if (!navigator.geolocation) {
+                                failureReasons.push('📱 GPS not supported on this device.');
+                                resolve();
+                                return;
+                            }
 
-                        navigator.geolocation.getCurrentPosition(
-                            (position) => {
-                                const distance = this.calculateDistance(
-                                    position.coords.latitude,
-                                    position.coords.longitude,
-                                    parseFloat(settings.latitude),
-                                    parseFloat(settings.longitude)
-                                );
-                                
-                                if (distance <= (settings.radius || 100)) {
-                                    gpsMatch = true;
-                                } else {
-                                    failureReasons.push(`📍 Hmm... GPS says you're having coffee somewhere else! ☕`);
-                                }
-                                resolve();
-                            },
-                            (error) => {
-                                failureReasons.push(`📱 GPS couldn't find you! Make sure location is enabled.`);
-                                resolve();
-                            },
-                            { enableHighAccuracy: true, timeout: 10000 }
-                        );
-                    });
-                } catch (e) {
-                    failureReasons.push(`🛰️ GPS hiccup! Please try again.`);
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    const distance = this.calculateDistance(
+                                        position.coords.latitude,
+                                        position.coords.longitude,
+                                        parseFloat(settings.latitude),
+                                        parseFloat(settings.longitude)
+                                    );
+                                    if (distance <= (settings.radius || 100)) {
+                                        gpsMatch = true;
+                                    } else {
+                                        failureReasons.push('📍 You appear to be outside the store GPS area.');
+                                    }
+                                    resolve();
+                                },
+                                () => {
+                                    failureReasons.push('📱 GPS could not be verified. Enable location and try again.');
+                                    resolve();
+                                },
+                                { enableHighAccuracy: true, timeout: 10000 }
+                            );
+                        });
+                    } catch (e) {
+                        failureReasons.push('🛰️ GPS error. Please try again.');
+                    }
+                } else {
+                    failureReasons.push('⚙️ Store GPS not set. Please contact your manager.');
                 }
-            } else {
-                failureReasons.push(`⚙️ Store GPS location not set up yet. Contact your manager!`);
             }
 
             if (ipMatch && gpsMatch) {
                 return { allowed: true };
-            } else {
-                return { allowed: false, reason: failureReasons.join('\n') };
             }
+            return { allowed: false, reason: failureReasons.join('\n') };
         },
 
         calculateDistance(lat1, lon1, lat2, lon2) {
@@ -1466,7 +1552,7 @@
             document.getElementById('store-latitude').value = settings.latitude || '';
             document.getElementById('store-longitude').value = settings.longitude || '';
             document.getElementById('store-radius').value = settings.radius || 100;
-            this.updateLocationRestrictionUI();
+            this.updateRestrictionUI();
             this.fetchCurrentIP();
         },
 
@@ -1918,7 +2004,11 @@
                 this.data.db.ref('rajani_location_settings').on('value', snapshot => {
                     const val = snapshot.val();
                     if (val) {
-                        this.data.locationSettings = val;
+                        const { gpsEnabled, ipEnabled, ...rest } = val;
+                        this.data.locationSettings = rest || {};
+                        this.data.gpsRestrictionEnabled = !!gpsEnabled;
+                        this.data.ipRestrictionEnabled = !!ipEnabled;
+                        this.updateRestrictionUI();
                     }
                 });
                 
@@ -1955,6 +2045,16 @@
                     if (val === true || val === false) {
                         this.data.cameraVerificationEnabled = val;
                         this.updateVerificationSettingsUI();
+                    }
+                });
+
+                // Sync admin password hash from cloud
+                this.data.db.ref('rajani_admin_password').on('value', snapshot => {
+                    const val = snapshot.val();
+                    if (typeof val === 'string' && val.trim()) {
+                        this.data.adminPasswordHash = val.trim();
+                    } else {
+                        this.data.adminPasswordHash = btoa('1234');
                     }
                 });
                 
@@ -2377,11 +2477,20 @@
         // ADMIN LOGIN
         handleAdminLogin(e) {
             e.preventDefault();
-            const pw = document.getElementById('admin-password').value;
-            if (pw === '1234') {
+            const pw = document.getElementById('admin-password').value.trim();
+            const err = document.getElementById('login-error');
+            if (!/^\d{4}$/.test(pw)) {
+                if (err) err.classList.remove('hidden');
+                return;
+            }
+
+            const stored = this.data.adminPasswordHash || btoa('1234');
+            const match = btoa(pw) === stored;
+            if (match) {
+                if (err) err.classList.add('hidden');
                 this.navigate('admin-layout');
             } else {
-                document.getElementById('login-error').classList.remove('hidden');
+                if (err) err.classList.remove('hidden');
             }
         },
 
@@ -3835,6 +3944,45 @@
             this.updateVerificationSettingsUI();
         },
 
+        updateAdminPassword() {
+            const oldPw = document.getElementById('admin-old-password')?.value.trim() || '';
+            const newPw = document.getElementById('admin-new-password')?.value.trim() || '';
+            const confirmPw = document.getElementById('admin-confirm-password')?.value.trim() || '';
+
+            if (!oldPw || !newPw || !confirmPw) {
+                this.uiAlert('Please fill in all password fields.');
+                return;
+            }
+            if (!/^\d{4}$/.test(oldPw) || !/^\d{4}$/.test(newPw) || !/^\d{4}$/.test(confirmPw)) {
+                this.uiAlert('Password must be exactly 4 digits.');
+                return;
+            }
+
+            const stored = this.data.adminPasswordHash || btoa('1234');
+            if (btoa(oldPw) !== stored) {
+                this.uiAlert('Old password is incorrect.');
+                return;
+            }
+            if (newPw !== confirmPw) {
+                this.uiAlert('New password and confirmation do not match.');
+                return;
+            }
+
+            if (this.data.db) {
+                this.data.db.ref('rajani_admin_password').set(btoa(newPw));
+                this.data.adminPasswordHash = btoa(newPw);
+                this.uiToast('Admin password updated successfully', 'success');
+                const oldEl = document.getElementById('admin-old-password');
+                const newEl = document.getElementById('admin-new-password');
+                const confEl = document.getElementById('admin-confirm-password');
+                if (oldEl) oldEl.value = '';
+                if (newEl) newEl.value = '';
+                if (confEl) confEl.value = '';
+            } else {
+                this.uiAlert('Firebase not connected. Cannot update password.');
+            }
+        },
+
         toggleAccordion(btn) {
             const content = btn.nextElementSibling;
             const chevron = btn.querySelector('[data-lucide="chevron-down"]');
@@ -3899,8 +4047,8 @@
 
         applyBranding() {
             const branding = this.data.branding || {};
-            const name = branding.name || 'Rajani Superstore';
-            const tagline = branding.tagline || 'Time Management';
+            const name = branding.name || '';
+            const tagline = branding.tagline || '';
             // Home
             const homeName = document.getElementById('home-brand-name');
             const homeTagline = document.getElementById('home-brand-tagline');
@@ -3912,22 +4060,32 @@
             if (homeWelcome) homeWelcome.textContent = name;
             // Sidebar
             const sidebarBrand = document.getElementById('sidebar-brand');
+            const sidebarTagline = document.getElementById('sidebar-tagline');
             const mobileBrand = document.getElementById('mobile-brand');
             if (sidebarBrand) sidebarBrand.textContent = name;
+            if (sidebarTagline) sidebarTagline.textContent = tagline;
             if (mobileBrand) mobileBrand.textContent = name;
             // Self registration header branding
             const srBrandName = document.getElementById('sr-brand-name');
             if (srBrandName) srBrandName.textContent = name;
             // Logo
-            if (branding.logo) {
-                const logoContainers = [
-                    document.getElementById('home-logo-container'),
-                    document.getElementById('sidebar-logo'),
-                    document.getElementById('sr-brand-logo-container')
-                ];
-                logoContainers.forEach(el => {
-                    if (el) el.innerHTML = `<img src="${branding.logo}" class="w-full h-full object-cover rounded-lg">`;
-                });
+            const logoContainers = [
+                document.getElementById('home-logo-container'),
+                document.getElementById('sidebar-logo'),
+                document.getElementById('sr-brand-logo-container')
+            ];
+            logoContainers.forEach(el => {
+                if (!el) return;
+                if (branding.logo) {
+                    el.innerHTML = `<img src="${branding.logo}" class="w-full h-full object-cover rounded-lg">`;
+                } else {
+                    el.innerHTML = '';
+                }
+            });
+            // Favicon
+            const faviconEl = document.getElementById('brand-favicon');
+            if (faviconEl) {
+                faviconEl.setAttribute('href', branding.favicon || '');
             }
         },
 

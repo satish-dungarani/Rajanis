@@ -443,7 +443,7 @@
                         <span>Settings</span>
                     </button>
                     <button onclick="app.loadAdminView('clean-data')" id="nav-clean-data" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
-                        <i data-lucide="broom" class="w-5 h-5"></i>
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
                         <span>Clean Data</span>
                     </button>
                 </nav>
@@ -905,7 +905,7 @@
             <div class="glass-card rounded-xl p-6 space-y-5">
                 <div>
                     <h3 class="text-lg font-semibold mb-2">Clear Clock‑In/Out History by Date Range</h3>
-                    <p class="text-white/50 text-sm">Only data older than <strong>6 weeks</strong> can be deleted. Select a range to remove old clock records.</p>
+                    <p class="text-white/50 text-sm">Only data older than <strong>4 weeks</strong> can be deleted. Select a range to remove old clock records.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -918,7 +918,7 @@
                     </div>
                 </div>
                 <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-                    ⚠️ You can only delete records where the selected date range is older than 6 weeks from today.
+                    ⚠️ You can only delete records where the selected date range is older than 4 weeks from today.
                 </div>
                 <button onclick="app.cleanHistoryByDateRange()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition">Delete Selected Range</button>
             </div>
@@ -1198,8 +1198,9 @@
 
     <script>
     // Default Firebase Configuration (Base64 encoded for basic obfuscation)
-    // const _fc = 'eyJhcGlLZXkiOiJBSXphU3lDNjVfRHJPaGJieXBjM190Y2xoRTh3N1pHaHhyM1lpeW8iLCJhdXRoRG9tYWluIjoicmFqYW5pc3VwZXJzdG9yZS01MjI0OC5maXJlYmFzZWFwcC5jb20iLCJkYXRhYmFzZVVSTCI6Imh0dHBzOi8vcmFqYW5pc3VwZXJzdG9yZS01MjI0OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCJwcm9qZWN0SWQiOiJyYWphbmlzdXBlcnN0b3JlLTUyMjQ4Iiwic3RvcmFnZUJ1Y2tldCI6InJhamFuaXN1cGVyc3RvcmUtNTIyNDguZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiMTA5MTEzMjQ4Mjc4IiwiYXBwSWQiOiIxOjEwOTExMzI0ODI3ODp3ZWI6NGIyMTliMzA0NGY5YmZiNDU4YzMzNyJ9';
+    const _fc = 'eyJhcGlLZXkiOiJBSXphU3lDNjVfRHJPaGJieXBjM190Y2xoRTh3N1pHaHhyM1lpeW8iLCJhdXRoRG9tYWluIjoicmFqYW5pc3VwZXJzdG9yZS01MjI0OC5maXJlYmFzZWFwcC5jb20iLCJkYXRhYmFzZVVSTCI6Imh0dHBzOi8vcmFqYW5pc3VwZXJzdG9yZS01MjI0OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCJwcm9qZWN0SWQiOiJyYWphbmlzdXBlcnN0b3JlLTUyMjQ4Iiwic3RvcmFnZUJ1Y2tldCI6InJhamFuaXN1cGVyc3RvcmUtNTIyNDguZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiMTA5MTEzMjQ4Mjc4IiwiYXBwSWQiOiIxOjEwOTExMzI0ODI3ODp3ZWI6NGIyMTliMzA0NGY5YmZiNDU4YzMzNyJ9';
     const _fc = 'ewogICJhcGlLZXkiOiAiQUl6YVN5QUFlWXdRSVVzWGR3ZE10YnpENGlCTHVlTnBKb1RUTFJBIiwKICAiYXV0aERvbWFpbiI6ICJyYWphbmktdGltZXNoZWV0LmZpcmViYXNlYXBwLmNvbSIsCiAgImRhdGFiYXNlVVJMIjogImh0dHBzOi8vcmFqYW5pLXRpbWVzaGVldC1kZWZhdWx0LXJ0ZGIuZXVyb3BlLXdlc3QxLmZpcmViYXNlZGF0YWJhc2UuYXBwIiwKICAicHJvamVjdElkIjogInJhamFuaS10aW1lc2hlZXQiLAogICJzdG9yYWdlQnVja2V0IjogInJhamFuaS10aW1lc2hlZXQuZmlyZWJhc2VzdG9yYWdlLmFwcCIsCiAgIm1lc3NhZ2luZ1NlbmRlcklkIjogIjc2MDM2NTg4MzU0NiIsCiAgImFwcElkIjogIjE6NzYwMzY1ODgzNTQ2OndlYjoyOGE2MDY2MGJmYTk4Nzc4ZTJiZjIzIgp9';
+    
     const app = {
         data: {
             employees: [],
@@ -4111,10 +4112,10 @@
                 return;
             }
 
-            const sixWeeksAgo = new Date();
-            sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
-            if (endDate > sixWeeksAgo) {
-                this.uiAlert('You can only delete records older than 6 weeks. Please select an older date range.');
+            const fourWeeksAgo = new Date();
+            fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+            if (endDate > fourWeeksAgo) {
+                this.uiAlert('You can only delete records older than 4 weeks. Please select an older date range.');
                 return;
             }
 

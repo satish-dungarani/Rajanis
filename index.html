@@ -442,6 +442,10 @@
                         <i data-lucide="settings" class="w-5 h-5"></i>
                         <span>Settings</span>
                     </button>
+                    <button onclick="app.loadAdminView('clean-data')" id="nav-clean-data" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="broom" class="w-5 h-5"></i>
+                        <span>Clean Data</span>
+                    </button>
                 </nav>
                 <div class="p-4 border-t border-white/10">
                     <button onclick="app.navigate('home')" class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition">
@@ -894,6 +898,33 @@
         </div>
     </template>
 
+    <!-- CLEAN DATA -->
+    <template id="subview-clean-data">
+        <div class="fade-in max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Clean Data</h2>
+            <div class="glass-card rounded-xl p-6 space-y-5">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Clear Clock‑In/Out History by Date Range</h3>
+                    <p class="text-white/50 text-sm">Only data older than <strong>6 weeks</strong> can be deleted. Select a range to remove old clock records.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-white/50 text-xs mb-1">Start Date</label>
+                        <input type="date" id="clean-start-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-white/50 text-xs mb-1">End Date</label>
+                        <input type="date" id="clean-end-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                    ⚠️ You can only delete records where the selected date range is older than 6 weeks from today.
+                </div>
+                <button onclick="app.cleanHistoryByDateRange()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition">Delete Selected Range</button>
+            </div>
+        </div>
+    </template>
+
     <!-- SETTINGS -->
     <template id="subview-settings">
         <div class="fade-in max-w-3xl mx-auto">
@@ -1167,8 +1198,8 @@
 
     <script>
     // Default Firebase Configuration (Base64 encoded for basic obfuscation)
-    const _fc = 'eyJhcGlLZXkiOiJBSXphU3lDNjVfRHJPaGJieXBjM190Y2xoRTh3N1pHaHhyM1lpeW8iLCJhdXRoRG9tYWluIjoicmFqYW5pc3VwZXJzdG9yZS01MjI0OC5maXJlYmFzZWFwcC5jb20iLCJkYXRhYmFzZVVSTCI6Imh0dHBzOi8vcmFqYW5pc3VwZXJzdG9yZS01MjI0OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCJwcm9qZWN0SWQiOiJyYWphbmlzdXBlcnN0b3JlLTUyMjQ4Iiwic3RvcmFnZUJ1Y2tldCI6InJhamFuaXN1cGVyc3RvcmUtNTIyNDguZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiMTA5MTEzMjQ4Mjc4IiwiYXBwSWQiOiIxOjEwOTExMzI0ODI3ODp3ZWI6NGIyMTliMzA0NGY5YmZiNDU4YzMzNyJ9';
-    
+    // const _fc = 'eyJhcGlLZXkiOiJBSXphU3lDNjVfRHJPaGJieXBjM190Y2xoRTh3N1pHaHhyM1lpeW8iLCJhdXRoRG9tYWluIjoicmFqYW5pc3VwZXJzdG9yZS01MjI0OC5maXJlYmFzZWFwcC5jb20iLCJkYXRhYmFzZVVSTCI6Imh0dHBzOi8vcmFqYW5pc3VwZXJzdG9yZS01MjI0OC1kZWZhdWx0LXJ0ZGIuZmlyZWJhc2Vpby5jb20iLCJwcm9qZWN0SWQiOiJyYWphbmlzdXBlcnN0b3JlLTUyMjQ4Iiwic3RvcmFnZUJ1Y2tldCI6InJhamFuaXN1cGVyc3RvcmUtNTIyNDguZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiMTA5MTEzMjQ4Mjc4IiwiYXBwSWQiOiIxOjEwOTExMzI0ODI3ODp3ZWI6NGIyMTliMzA0NGY5YmZiNDU4YzMzNyJ9';
+    const _fc = 'ewogICJhcGlLZXkiOiAiQUl6YVN5QUFlWXdRSVVzWGR3ZE10YnpENGlCTHVlTnBKb1RUTFJBIiwKICAiYXV0aERvbWFpbiI6ICJyYWphbmktdGltZXNoZWV0LmZpcmViYXNlYXBwLmNvbSIsCiAgImRhdGFiYXNlVVJMIjogImh0dHBzOi8vcmFqYW5pLXRpbWVzaGVldC1kZWZhdWx0LXJ0ZGIuZXVyb3BlLXdlc3QxLmZpcmViYXNlZGF0YWJhc2UuYXBwIiwKICAicHJvamVjdElkIjogInJhamFuaS10aW1lc2hlZXQiLAogICJzdG9yYWdlQnVja2V0IjogInJhamFuaS10aW1lc2hlZXQuZmlyZWJhc2VzdG9yYWdlLmFwcCIsCiAgIm1lc3NhZ2luZ1NlbmRlcklkIjogIjc2MDM2NTg4MzU0NiIsCiAgImFwcElkIjogIjE6NzYwMzY1ODgzNTQ2OndlYjoyOGE2MDY2MGJmYTk4Nzc4ZTJiZjIzIgp9';
     const app = {
         data: {
             employees: [],
@@ -1194,7 +1225,12 @@
             activityPage: 1,
             activityPageSize: 50,
             activitySearch: '',
-            adminPasswordHash: null
+            adminPasswordHash: null,
+            photoMap: {},
+            listenersAttached: false,
+            idleTimer: null,
+            idleTimeoutMs: 7 * 60 * 1000,
+            fbHandlers: {}
         },
 
         // Decode default Firebase config
@@ -1214,6 +1250,7 @@
             this.initFirebase(); // Initialize Firebase FIRST
             this.loadData();
             this.startClock();
+            this.setupIdleDetection();
             // Support direct navigation via URL hash for QR-based pages
             const hash = (window.location.hash || '').replace('#', '');
             if (hash === 'employee-register') {
@@ -1761,6 +1798,9 @@
                 document.getElementById(`nav-${view}`)?.classList.add('active');
                 this.toggleReportsMenu(false);
             }
+            if (view === 'clean-data') {
+                document.getElementById('nav-clean-data')?.classList.add('active');
+            }
             // Render content
             if (view === 'dashboard') this.renderDashboard();
             if (view === 'employees') this.renderAdminEmployees();
@@ -1768,6 +1808,7 @@
             if (view === 'reports-weekly') this.initWeeklyReport();
             if (view === 'reports-custom') this.initCustomReport();
             if (view === 'settings') this.renderSettings();
+            if (view === 'clean-data') this.renderCleanData();
         },
 
         toggleReportsMenu(forceState) {
@@ -1973,91 +2014,9 @@
                 if (!firebase.apps.length) firebase.initializeApp(config);
                 this.data.db = firebase.database();
                 this.data.dbRef = this.data.db.ref('rajani_data');
-                
-                // Listen for data changes from Firebase (this is the ONLY source of truth)
-                this.data.dbRef.on('value', snapshot => {
-                    if (this.data.isResetting) return;
-                    const val = snapshot.val();
-                    if (val && val.wiped) {
-                        this.data.employees = [];
-                        this.data.history = [];
-                    } else if (val) {
-                        if (val.employees) this.data.employees = val.employees;
-                        if (val.history) this.data.history = val.history;
-                    }
-                    // Mark that employees/history have been loaded at least once
-                    this.data.employeesLoaded = true;
-                    // Apply auto clock-out rules once data is available
-                    this.checkAutoLogout();
-                    // Refresh current view only when admin layout is active
-                    // (prevents null DOM errors when user is on Home/Employee views)
-                    const inAdmin = document.getElementById('admin-content');
-                    if (inAdmin && document.getElementById('view-admin-layout')) {
-                        if (this.data.adminView === 'dashboard') this.renderDashboard?.();
-                        if (this.data.adminView === 'employees') this.renderAdminEmployees?.();
-                        if (this.data.adminView === 'reports-activity') this.renderActivityLog?.();
-                        if (this.data.adminView === 'reports-weekly') this.initWeeklyReport?.();
-                    }
-                });
-                
-                // Sync location settings from cloud
-                this.data.db.ref('rajani_location_settings').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (val) {
-                        const { gpsEnabled, ipEnabled, ...rest } = val;
-                        this.data.locationSettings = rest || {};
-                        this.data.gpsRestrictionEnabled = !!gpsEnabled;
-                        this.data.ipRestrictionEnabled = !!ipEnabled;
-                        this.updateRestrictionUI();
-                    }
-                });
-                
-                // Sync branding from cloud
-                this.data.db.ref('rajani_branding').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (val) {
-                        this.data.branding = val;
-                        this.applyBranding();
-                    }
-                });
-                
-                // Sync theme from cloud
-                this.data.db.ref('rajani_theme').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (val) {
-                        this.data.currentTheme = val;
-                        this.applyTheme();
-                    }
-                });
-                
-                // Sync PIN verification from cloud
-                this.data.db.ref('rajani_pin_verification').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (val === true || val === false) {
-                        this.data.pinVerificationEnabled = val;
-                        this.updateVerificationSettingsUI();
-                    }
-                });
 
-                // Sync camera verification from cloud
-                this.data.db.ref('rajani_camera_verification').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (val === true || val === false) {
-                        this.data.cameraVerificationEnabled = val;
-                        this.updateVerificationSettingsUI();
-                    }
-                });
+                this.attachCoreListeners();
 
-                // Sync admin password hash from cloud
-                this.data.db.ref('rajani_admin_password').on('value', snapshot => {
-                    const val = snapshot.val();
-                    if (typeof val === 'string' && val.trim()) {
-                        this.data.adminPasswordHash = val.trim();
-                    } else {
-                        this.data.adminPasswordHash = btoa('1234');
-                    }
-                });
-                
                 console.log('Firebase connected successfully');
             } catch (e) {
                 console.error('Firebase init error:', e);
@@ -2103,6 +2062,144 @@
                 console.error('JSON parse error:', e);
                 this.uiAlert('Invalid JSON format. Please check your configuration.');
             }
+        },
+
+        attachCoreListeners() {
+            if (!this.data.db || this.data.listenersAttached) return;
+            this.data.listenersAttached = true;
+            const dataRef = this.data.dbRef;
+            const handler = (snapshot) => {
+                if (this.data.isResetting) return;
+                const val = snapshot.val();
+                if (val && val.wiped) {
+                    this.data.employees = [];
+                    this.data.history = [];
+                } else if (val) {
+                    if (val.employees) this.data.employees = val.employees;
+                    if (val.history) this.data.history = val.history;
+                }
+                this.data.employeesLoaded = true;
+                this.checkAutoLogout();
+                const inAdmin = document.getElementById('admin-content');
+                if (inAdmin && document.getElementById('view-admin-layout')) {
+                    if (this.data.adminView === 'dashboard') this.renderDashboard?.();
+                    if (this.data.adminView === 'employees') this.renderAdminEmployees?.();
+                    if (this.data.adminView === 'reports-activity') this.renderActivityLog?.();
+                    if (this.data.adminView === 'reports-weekly') this.initWeeklyReport?.();
+                    if (this.data.adminView === 'reports-custom') this.initCustomReport?.();
+                }
+            };
+            dataRef.on('value', handler);
+            this.data.fbHandlers.main = handler;
+
+            // settings listeners
+            const locRef = this.data.db.ref('rajani_location_settings');
+            const locHandler = (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    const { gpsEnabled, ipEnabled, ...rest } = val;
+                    this.data.locationSettings = rest || {};
+                    this.data.gpsRestrictionEnabled = !!gpsEnabled;
+                    this.data.ipRestrictionEnabled = !!ipEnabled;
+                    this.updateRestrictionUI();
+                }
+            };
+            locRef.on('value', locHandler);
+            this.data.fbHandlers.location = locHandler;
+
+            const brandRef = this.data.db.ref('rajani_branding');
+            const brandHandler = (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    this.data.branding = val;
+                    this.applyBranding();
+                }
+            };
+            brandRef.on('value', brandHandler);
+            this.data.fbHandlers.branding = brandHandler;
+
+            const themeRef = this.data.db.ref('rajani_theme');
+            const themeHandler = (snapshot) => {
+                const val = snapshot.val();
+                if (val) {
+                    this.data.currentTheme = val;
+                    this.applyTheme();
+                }
+            };
+            themeRef.on('value', themeHandler);
+            this.data.fbHandlers.theme = themeHandler;
+
+            const pinRef = this.data.db.ref('rajani_pin_verification');
+            const pinHandler = (snapshot) => {
+                const val = snapshot.val();
+                if (val === true || val === false) {
+                    this.data.pinVerificationEnabled = val;
+                    this.updateVerificationSettingsUI();
+                }
+            };
+            pinRef.on('value', pinHandler);
+            this.data.fbHandlers.pin = pinHandler;
+
+            const camRef = this.data.db.ref('rajani_camera_verification');
+            const camHandler = (snapshot) => {
+                const val = snapshot.val();
+                if (val === true || val === false) {
+                    this.data.cameraVerificationEnabled = val;
+                    this.updateVerificationSettingsUI();
+                }
+            };
+            camRef.on('value', camHandler);
+            this.data.fbHandlers.camera = camHandler;
+
+            const passRef = this.data.db.ref('rajani_admin_password');
+            const passHandler = (snapshot) => {
+                const val = snapshot.val();
+                if (typeof val === 'string' && val.trim()) {
+                    this.data.adminPasswordHash = val.trim();
+                } else {
+                    this.data.adminPasswordHash = btoa('1234');
+                }
+            };
+            passRef.on('value', passHandler);
+            this.data.fbHandlers.adminPass = passHandler;
+        },
+
+        detachCoreListeners() {
+            if (!this.data.db || !this.data.listenersAttached) return;
+            const dataRef = this.data.dbRef;
+            if (this.data.fbHandlers.main) dataRef.off('value', this.data.fbHandlers.main);
+            if (this.data.fbHandlers.location) this.data.db.ref('rajani_location_settings').off('value', this.data.fbHandlers.location);
+            if (this.data.fbHandlers.branding) this.data.db.ref('rajani_branding').off('value', this.data.fbHandlers.branding);
+            if (this.data.fbHandlers.theme) this.data.db.ref('rajani_theme').off('value', this.data.fbHandlers.theme);
+            if (this.data.fbHandlers.pin) this.data.db.ref('rajani_pin_verification').off('value', this.data.fbHandlers.pin);
+            if (this.data.fbHandlers.camera) this.data.db.ref('rajani_camera_verification').off('value', this.data.fbHandlers.camera);
+            if (this.data.fbHandlers.adminPass) this.data.db.ref('rajani_admin_password').off('value', this.data.fbHandlers.adminPass);
+            this.data.listenersAttached = false;
+        },
+
+        setupIdleDetection() {
+            const reset = () => {
+                if (this.data.idleTimer) clearTimeout(this.data.idleTimer);
+                this.data.idleTimer = setTimeout(() => {
+                    this.detachCoreListeners();
+                    this.uiToast('Idle mode: paused sync to save bandwidth', 'info');
+                }, this.data.idleTimeoutMs);
+                // resume listeners on any activity
+                if (!this.data.listenersAttached && this.data.db) {
+                    this.attachCoreListeners();
+                }
+            };
+            ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
+                document.addEventListener(evt, reset, { passive: true });
+            });
+            reset();
+        },
+
+        // Light-weight cache usage (memory)
+        getHistoryPage(page = 1, pageSize = 50) {
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            return this.data.history.slice(start, end);
         },
 
         clearFirebaseConfig() {
@@ -3499,49 +3596,54 @@
                     .slice()
                     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                let openIn = null;
-                let missingClockOut = false;
-                let deductionMinutes = 0;
-                const sessions = [];
+                    let openIn = null;
+                    let missingClockOut = false;
+                    let deductionMinutes = 0;
+                    const sessions = [];
 
-                for (const r of dayRecords) {
-                    if (r.action === 'Clocked In') {
-                        if (!openIn) openIn = new Date(r.timestamp);
-                    } else if (r.action === 'Clocked Out' || r.action === 'Auto Clock Out (System)') {
-                        if (openIn) {
-                            const out = new Date(r.timestamp);
-                            if (out > openIn) sessions.push({ in: openIn, out });
-                            openIn = null;
+                    for (const r of dayRecords) {
+                        if (r.action === 'Clocked In') {
+                            if (!openIn) openIn = new Date(r.timestamp);
+                        } else if (r.action === 'Clocked Out' || r.action === 'Auto Clock Out (System)') {
+                            if (openIn) {
+                                const out = new Date(r.timestamp);
+                                if (out > openIn) sessions.push({ in: openIn, out });
+                                openIn = null;
+                            }
                         }
                     }
-                }
 
-                // If still clocked in today, show an in-progress session
-                if (openIn && emp.status === 'in' && day.toDateString() === new Date().toDateString()) {
-                    sessions.push({ in: openIn, out: null, inProgress: true });
-                }
+                    // If still clocked in today, show an in-progress session
+                    if (openIn && emp.status === 'in' && day.toDateString() === new Date().toDateString()) {
+                        sessions.push({ in: openIn, out: null, inProgress: true });
+                    }
 
-                // Missing clock-out rule: if any open session exists, mark missing (no hours counted)
-                if (sessions.some(s => !s.out)) {
-                    missingClockOut = true;
-                }
+                    // Missing clock-out rule: if any open session exists, mark missing (no hours counted)
+                    if (sessions.some(s => !s.out)) {
+                        missingClockOut = true;
+                    }
 
-                let totalHours = 0;
+                    let totalHours = 0;
 
-                if (!missingClockOut) {
-                    sessions.forEach(session => {
-                        if (!session.out) return;
-                        let sessionHours = Math.max(0, (session.out - session.in) / (1000 * 60 * 60));
-                        if (sessionHours > 8) {
-                            sessionHours = Math.max(0, sessionHours - 0.5);
-                            deductionMinutes += 30;
-                        }
-                        totalHours += sessionHours;
-                    });
-                }
+                    if (!missingClockOut) {
+                        sessions.forEach(session => {
+                            if (!session.out) return;
+                            let sessionHours = Math.max(0, (session.out - session.in) / (1000 * 60 * 60));
+                            if (sessionHours > 8) {
+                                sessionHours = Math.max(0, sessionHours - 0.5);
+                                deductionMinutes += 30;
+                            }
+                            totalHours += sessionHours;
+                        });
+                    }
 
-                const deductionNote = deductionMinutes > 0 ? `${deductionMinutes} min break deducted` : '';
-                byDay[day.toDateString()] = { sessions, totalHours, missingClockOut, deductionNote, deductionMinutes };
+                    const deductionNote = deductionMinutes > 0 ? `${deductionMinutes} min break deducted` : '';
+                    byDay[day.toDateString()] = { sessions, totalHours, missingClockOut, deductionNote, deductionMinutes };
+
+                // Store only for weekly/custom reports (NOT written to DB)
+                const mapKey = `${empId}|${new Date(weekStart).toDateString()}`;
+                this.data.photoMap[mapKey] = this.data.photoMap[mapKey] || {};
+                this.data.photoMap[mapKey][day.toDateString()] = (dayRecords || []).map(r => r.verificationPhoto).filter(Boolean);
             }
 
             return byDay;
@@ -3625,10 +3727,15 @@
             const { rows, totalHours } = this.buildWeeklyReportData(emp, weekStart);
 
             rows.forEach(r => {
+                const photos = (this.data.photoMap?.[`${emp.id}|${new Date(weekStart).toDateString()}`]?.[r.dayDate.toDateString()] || []);
+                const photoIcon = photos.length
+                    ? `<button type="button" onclick="app.viewVerificationPhoto(${this.data.history.findIndex(h => h.verificationPhoto === photos[0])})" class="px-2 py-0.5 rounded badge-blue text-[10px]">📷</button>`
+                    : '';
+                const notesHtml = `${r.notesHtml} ${photoIcon}`;
                 table.innerHTML += `<tr class="${r.rowClass}">
                     <td class="px-4 py-3">${r.dayLabel}${r.offBadge}</td>
                     <td class="px-4 py-3 text-white/80">${r.sessionsHtml}</td>
-                    <td class="px-4 py-3">${r.notesHtml}</td>
+                    <td class="px-4 py-3">${notesHtml}</td>
                     <td class="px-4 py-3 text-right">${r.hoursDisplay}</td>
                 </tr>`;
             });
@@ -3981,6 +4088,50 @@
             } else {
                 this.uiAlert('Firebase not connected. Cannot update password.');
             }
+        },
+
+        renderCleanData() {
+            // no-op for now; placeholder for future enhancements
+        },
+
+        cleanHistoryByDateRange() {
+            const startVal = document.getElementById('clean-start-date')?.value;
+            const endVal = document.getElementById('clean-end-date')?.value;
+            if (!startVal || !endVal) {
+                this.uiAlert('Please select both Start and End dates.');
+                return;
+            }
+            const startDate = new Date(startVal);
+            const endDate = new Date(endVal);
+            startDate.setHours(0,0,0,0);
+            endDate.setHours(23,59,59,999);
+
+            if (endDate < startDate) {
+                this.uiAlert('End date must be after Start date.');
+                return;
+            }
+
+            const sixWeeksAgo = new Date();
+            sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
+            if (endDate > sixWeeksAgo) {
+                this.uiAlert('You can only delete records older than 6 weeks. Please select an older date range.');
+                return;
+            }
+
+            this.uiConfirm(
+                'Delete Selected Range?',
+                `This will permanently delete all clock records from ${this.formatDate(startDate)} to ${this.formatDate(endDate)}.`,
+                () => {
+                    const originalCount = this.data.history.length;
+                    this.data.history = this.data.history.filter(h => {
+                        const t = new Date(h.timestamp);
+                        return t < startDate || t > endDate;
+                    });
+                    const deleted = originalCount - this.data.history.length;
+                    this.saveData();
+                    this.uiToast(`Deleted ${deleted} records.`, 'success');
+                }
+            );
         },
 
         toggleAccordion(btn) {

@@ -1193,7 +1193,8 @@
             listenersAttached: false,
             idleTimer: null,
             idleTimeoutMs: 7 * 60 * 1000,
-            settingsLoaded: false
+            settingsLoaded: false,
+            isClockActionRunning: false
         },
 
         // Supabase (default data source)
@@ -1371,8 +1372,10 @@
         },
 
         initSupabase() {
-            const { url, key } = this.getSupabaseConfig();
-            if (!url || !key) {
+            const cfg = this.getSupabaseConfig();
+            const url = (cfg?.url || '').trim();
+            const key = (cfg?.key || '').trim();
+            if (!url || !key || !window.supabase?.createClient) {
                 this.data.supabase = null;
                 return;
             }
@@ -2134,26 +2137,6 @@
                         this.uiToast('Failed to save employees to database', 'error');
                     }
                 }
-                // Insert history (append only)
-                if (this.data.history.length) {
-                    const latest = this.data.history[0];
-                    if (latest && !latest._synced) {
-                        const { error } = await this.data.supabase.from('history').insert({
-                            employee_id: latest.employeeId,
-                            employee_name: latest.employeeName,
-                            employee_role: latest.employeeRole,
-                            action: latest.action,
-                            timestamp: latest.timestamp,
-                            verification_photo: latest.verificationPhoto || null
-                        });
-                        if (error) {
-                            console.error('Supabase history save error:', error);
-                            this.uiToast('Failed to save clock record', 'error');
-                        } else {
-                            latest._synced = true;
-                        }
-                    }
-                }
             } catch (e) {
                 console.error('Supabase save error:', e);
             }
@@ -2565,10 +2548,14 @@
                 return;
             }
 
+            if (this.data.isClockActionRunning) return;
+            this.data.isClockActionRunning = true;
+
             const btn = document.getElementById('action-btn');
 
             // If already in this state, ignore (prevents accidental double clicks)
             if ((type === 'in' && emp.status === 'in') || (type === 'out' && emp.status === 'out')) {
+                this.data.isClockActionRunning = false;
                 return;
             }
 
@@ -2603,6 +2590,7 @@
                     lucide.createIcons();
                     
                     this.uiAlert(`🙅 Nope, can't do that!\n\n${locationCheck.reason}\n\n🏪 Come to the store first, then try again! We're watching... 👀`);
+                    this.data.isClockActionRunning = false;
                     return;
                 }
             }
@@ -2634,10 +2622,14 @@
             this.data.history.unshift(historyRecord);
 
             this.saveData();
+            this.appendHistoryToSupabase(historyRecord);
+            this.uiToast(type === 'in' ? 'Clocked In' : 'Clocked Out', 'success');
+
             btn.innerHTML = type === 'in' ? '✓ Clocked In Successfully!' : '✓ Clocked Out Successfully!';
             btn.disabled = true;
             btn.className = 'w-full py-4 rounded-xl font-bold text-lg bg-slate-700 cursor-not-allowed';
             setTimeout(() => this.navigate('employee-list'), 1500);
+            this.data.isClockActionRunning = false;
         },
 
         // Prompt employee for 4-digit PIN and verify against stored pinHash
@@ -2952,7 +2944,7 @@
             this.data.tempPhoto = null;
         },
 
-        saveEmployee(e) {
+        async saveEmployee(e) {
             e.preventDefault();
             const id = document.getElementById('emp-id').value;
             const name = document.getElementById('emp-name').value.trim();
@@ -3013,8 +3005,15 @@
                 if (displayOrderRaw) newEmp.displayOrder = displayOrder;
                 this.data.employees.push(newEmp);
             }
-            this.saveData();
-            this.syncEmployeesToSupabase();
+            await this.saveData();
+            if (this.data.supabase) {
+                const rows = this.data.employees.map(e => this.mapEmployeeToDB(e));
+                const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
+                if (error) {
+                    console.error('Supabase employees upsert error:', error);
+                    this.uiToast('Failed to save employees to database', 'error');
+                }
+            }
             this.closeEmployeeModal();
             this.renderAdminEmployees();
             this.uiToast('Employee saved!', 'success');
@@ -3139,9 +3138,16 @@
 
         confirmDeleteEmployee(id) {
             const emp = this.data.employees.find(e => e.id === id);
-            this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', () => {
+            this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', async () => {
                 this.data.employees = this.data.employees.filter(e => e.id !== id);
-                this.saveData();
+                await this.saveData();
+                if (this.data.supabase) {
+                    const { error } = await this.data.supabase.from('employees').delete().eq('id', id);
+                    if (error) {
+                        console.error('Supabase delete error:', error);
+                        this.uiToast('Failed to delete employee from database', 'error');
+                    }
+                }
                 this.renderAdminEmployees();
                 this.uiToast('Employee deleted', 'success');
             });

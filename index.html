@@ -147,6 +147,17 @@
         </div>
     </div>
 
+    <!-- Global Loader -->
+    <div id="global-loader" class="fixed inset-0 z-[9997] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="glass-card rounded-2xl px-6 py-4 flex items-center gap-3">
+                <i data-lucide="loader" class="w-5 h-5 animate-spin text-[var(--theme-accent)]"></i>
+                <span id="global-loader-text" class="text-sm">Processing...</span>
+            </div>
+        </div>
+    </div>
+
     <!-- HOME -->
     <template id="view-home">
         <div class="min-h-screen flex flex-col fade-in relative overflow-hidden">
@@ -1194,7 +1205,8 @@
             idleTimer: null,
             idleTimeoutMs: 7 * 60 * 1000,
             settingsLoaded: false,
-            isClockActionRunning: false
+            isClockActionRunning: false,
+            errorLogs: []
         },
 
         // Supabase (default data source)
@@ -1212,11 +1224,19 @@
         async dbReadEmployeesAndHistory() {
             const src = this.getDataSource();
             if (src === 'supabase') {
-                const { data: employees, error: empErr } = await this.data.supabase.from('employees').select('*');
-                if (empErr) throw empErr;
-                const { data: history, error: histErr } = await this.data.supabase.from('history').select('*').order('timestamp', { ascending: false });
-                if (histErr) throw histErr;
-                return { employees: (employees || []).map(this.mapEmployeeFromDB), history: (history || []).map(this.mapHistoryFromDB) };
+                this.showLoader('Loading data...');
+                try {
+                    const { data: employees, error: empErr } = await this.data.supabase.from('employees').select('*');
+                    if (empErr) throw empErr;
+                    const { data: history, error: histErr } = await this.data.supabase.from('history').select('*').order('timestamp', { ascending: false });
+                    if (histErr) throw histErr;
+                    return { employees: (employees || []).map(this.mapEmployeeFromDB), history: (history || []).map(this.mapHistoryFromDB) };
+                } catch (e) {
+                    this.logError('dbReadEmployeesAndHistory', e);
+                    throw e;
+                } finally {
+                    this.hideLoader();
+                }
             }
             return { employees: [], history: [] };
         },
@@ -1383,7 +1403,7 @@
                 this.data.supabase = window.supabase.createClient(url, key, { auth: { persistSession: false } });
                 this.updateSupabaseStatus(true);
             } catch (e) {
-                console.error('Supabase init error:', e);
+                this.logError('initSupabase', e);
                 this.data.supabase = null;
             }
         },
@@ -2127,18 +2147,21 @@
 
         async saveData() {
             if (!this.data.supabase || this.data.isResetting) return;
+            this.showLoader('Saving...');
             try {
                 // Upsert employees (mapped to DB schema)
                 if (this.data.employees.length) {
                     const rows = this.data.employees.map(e => this.mapEmployeeToDB(e));
                     const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
                     if (error) {
-                        console.error('Supabase employees save error:', error);
+                        this.logError('saveData', error);
                         this.uiToast('Failed to save employees to database', 'error');
                     }
                 }
             } catch (e) {
-                console.error('Supabase save error:', e);
+                this.logError('saveData', e);
+            } finally {
+                this.hideLoader();
             }
         },
 
@@ -2461,12 +2484,20 @@
                 card.dataset.name = emp.name.toLowerCase();
                 card.dataset.role = emp.role.toLowerCase();
                 card.onclick = async () => {
-                    this.data.selectedEmployeeId = emp.id;
-                    if (this.data.pinVerificationEnabled && emp.pinHash) {
-                        const ok = await this.promptEmployeePin(emp);
-                        if (!ok) return;
+                    this.showLoader('Loading profile...');
+                    try {
+                        this.data.selectedEmployeeId = emp.id;
+                        if (this.data.pinVerificationEnabled && emp.pinHash) {
+                            const ok = await this.promptEmployeePin(emp);
+                            if (!ok) return;
+                        }
+                        this.navigate('employee-action');
+                    } catch (e) {
+                        this.logError('employeeCardClick', e, { employeeId: emp.id });
+                        this.uiAlert('Something went wrong while opening the profile. Please try again.');
+                    } finally {
+                        this.hideLoader();
                     }
-                    this.navigate('employee-action');
                 };
                 const statusClass = emp.status === 'in' ? 'bg-green-500' : 'bg-slate-600';
                 const todayIndex = new Date().getDay();
@@ -2550,6 +2581,7 @@
 
             if (this.data.isClockActionRunning) return;
             this.data.isClockActionRunning = true;
+            this.showLoader('Saving clock action...');
 
             const btn = document.getElementById('action-btn');
 
@@ -2567,6 +2599,8 @@
                 verificationPhoto = await this.captureVerificationPhoto();
                 if (!verificationPhoto) {
                     // User cancelled or camera failed
+                    this.hideLoader();
+                    this.data.isClockActionRunning = false;
                     return;
                 }
             }
@@ -2590,6 +2624,7 @@
                     lucide.createIcons();
                     
                     this.uiAlert(`🙅 Nope, can't do that!\n\n${locationCheck.reason}\n\n🏪 Come to the store first, then try again! We're watching... 👀`);
+                    this.hideLoader();
                     this.data.isClockActionRunning = false;
                     return;
                 }
@@ -2629,6 +2664,7 @@
             btn.disabled = true;
             btn.className = 'w-full py-4 rounded-xl font-bold text-lg bg-slate-700 cursor-not-allowed';
             setTimeout(() => this.navigate('employee-list'), 1500);
+            this.hideLoader();
             this.data.isClockActionRunning = false;
         },
 
@@ -2946,6 +2982,7 @@
 
         async saveEmployee(e) {
             e.preventDefault();
+            this.showLoader('Saving employee...');
             const id = document.getElementById('emp-id').value;
             const name = document.getElementById('emp-name').value.trim();
             const role = document.getElementById('emp-role').value.trim();
@@ -3016,7 +3053,8 @@
             }
             this.closeEmployeeModal();
             this.renderAdminEmployees();
-            this.uiToast('Employee saved!', 'success');
+                this.uiToast('Employee saved!', 'success');
+                this.hideLoader();
         },
 
         // Employee self-registration (QR-based form)
@@ -3139,6 +3177,7 @@
         confirmDeleteEmployee(id) {
             const emp = this.data.employees.find(e => e.id === id);
             this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', async () => {
+                this.showLoader('Deleting employee...');
                 this.data.employees = this.data.employees.filter(e => e.id !== id);
                 await this.saveData();
                 if (this.data.supabase) {
@@ -3150,6 +3189,7 @@
                 }
                 this.renderAdminEmployees();
                 this.uiToast('Employee deleted', 'success');
+                this.hideLoader();
             });
         },
 
@@ -4897,6 +4937,43 @@
         closeModal() {
             document.getElementById('modal-container').classList.add('hidden');
             this._modalCallback = null;
+        },
+
+        showLoader(message = 'Processing...') {
+            const loader = document.getElementById('global-loader');
+            const text = document.getElementById('global-loader-text');
+            if (text) text.textContent = message;
+            if (loader) loader.classList.remove('hidden');
+            lucide.createIcons();
+        },
+
+        hideLoader() {
+            const loader = document.getElementById('global-loader');
+            if (loader) loader.classList.add('hidden');
+        },
+
+        logError(source, error, context = {}) {
+            const entry = {
+                source,
+                message: error?.message || String(error),
+                stack: error?.stack || null,
+                context,
+                timestamp: new Date().toISOString()
+            };
+            console.error('AppError:', entry);
+            this.data.errorLogs = this.data.errorLogs || [];
+            this.data.errorLogs.push(entry);
+            if (this.data.errorLogs.length > 200) this.data.errorLogs.shift();
+            // Best-effort: store in Supabase (non-blocking)
+            if (this.data.supabase) {
+                this.data.supabase.from('error_logs').insert({
+                    source: entry.source,
+                    message: entry.message,
+                    stack: entry.stack,
+                    context: entry.context,
+                    timestamp: entry.timestamp
+                }).catch(() => {});
+            }
         },
 
         confirmModal() {

@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <!--
     =====================================================
     RAJANI SUPERSTORE LTD - TIME SHEET MANAGEMENT SYSTEM
     =====================================================
-    VERSION: 1.0.7
+    VERSION: 1.0.6
     DATE: Stable Release
     
     FEATURES:
@@ -20,7 +19,7 @@
     - Location Restriction (IP + GPS)
     
     RESTORE POINT: This is the stable version.
-    Keep a backup of this file as "index-v1.0.6.html"
+    Keep a backup of this file as "index-v1.0.5.html"
     =====================================================
 -->
 <html lang="en">
@@ -916,7 +915,7 @@
             <div class="glass-card rounded-xl p-6 space-y-5">
                 <div>
                     <h3 class="text-lg font-semibold mb-2">Clear Clock‑In/Out History by Date Range</h3>
-                    <p class="text-white/50 text-sm">Only data older than <strong>4 weeks</strong> can be deleted. Select a range to remove old clock records.</p>
+                    <p class="text-white/50 text-sm">Select a date range to remove clock records. Current week data cannot be deleted.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -929,7 +928,7 @@
                     </div>
                 </div>
                 <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-                    ⚠️ You can only delete records where the selected date range is older than 4 weeks from today.
+                    ⚠️ You cannot delete records from the current week. Select a range ending on or before last Saturday.
                 </div>
                 <button onclick="app.cleanHistoryByDateRange()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition">Delete Selected Range</button>
             </div>
@@ -1204,7 +1203,7 @@
             photoMap: {},
             listenersAttached: false,
             idleTimer: null,
-            idleTimeoutMs: 7 * 60 * 1000,
+            idleTimeoutMs: 60 * 60 * 1000,
             settingsLoaded: false,
             isClockActionRunning: false,
             errorLogs: []
@@ -2133,7 +2132,6 @@
                 this.data.employees = employees || [];
                 this.data.history = history || [];
                 this.data.employeesLoaded = true;
-                this.checkAutoLogout();
                 if (document.getElementById('admin-content')) {
                     if (this.data.adminView === 'dashboard') this.renderDashboard?.();
                     if (this.data.adminView === 'employees') this.renderAdminEmployees?.();
@@ -2144,6 +2142,16 @@
             } catch (e) {
                 console.error('Supabase load error:', e);
             }
+        },
+
+        async loadHistoryFromSupabase() {
+            if (!this.data.supabase) return;
+            const { data, error } = await this.data.supabase.from('history').select('*').order('timestamp', { ascending: false });
+            if (error) {
+                console.error('Supabase history load error:', error);
+                return;
+            }
+            this.data.history = (data || []).map(this.mapHistoryFromDB);
         },
 
         async saveData() {
@@ -2361,13 +2369,9 @@
             const reset = () => {
                 if (this.data.idleTimer) clearTimeout(this.data.idleTimer);
                 this.data.idleTimer = setTimeout(() => {
-                    this.detachCoreListeners();
-                    this.uiToast('Idle mode: paused sync to save bandwidth', 'info');
+                    // Auto-reload after 1 hour of inactivity
+                    location.reload();
                 }, this.data.idleTimeoutMs);
-                // resume listeners on any activity
-                if (!this.data.listenersAttached && this.data.db) {
-                    this.attachCoreListeners();
-                }
             };
             ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
                 document.addEventListener(evt, reset, { passive: true });
@@ -2386,35 +2390,6 @@
             this.uiAlert('Firebase is not the primary backend. Use Supabase setup instead.');
         },
 
-        // AUTO LOGOUT
-        checkAutoLogout() {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            let changed = false;
-            this.data.employees.forEach(emp => {
-                if (emp.status === 'in' && emp.lastAction) {
-                    const lastDate = new Date(emp.lastAction);
-                    const lastDay = new Date(lastDate);
-                    lastDay.setHours(0, 0, 0, 0);
-                    if (lastDay < today) {
-                        const closeHour = lastDay.getDay() === 0 ? 16 : 18;
-                        const autoTime = new Date(lastDay);
-                        autoTime.setHours(closeHour, 0, 0, 0);
-                        emp.status = 'out';
-                        emp.lastAction = autoTime.toISOString();
-                        this.data.history.unshift({
-                            employeeId: emp.id,
-                            employeeName: emp.name,
-                            employeeRole: emp.role,
-                            action: 'Auto Clock Out (System)',
-                            timestamp: autoTime.toISOString()
-                        });
-                        changed = true;
-                    }
-                }
-            });
-            if (changed) this.saveData();
-        },
 
         // CLOCK
         startClock() {
@@ -3043,19 +3018,26 @@
                 if (displayOrderRaw) newEmp.displayOrder = displayOrder;
                 this.data.employees.push(newEmp);
             }
-            await this.saveData();
-            if (this.data.supabase) {
-                const rows = this.data.employees.map(e => this.mapEmployeeToDB(e));
-                const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
-                if (error) {
-                    console.error('Supabase employees upsert error:', error);
-                    this.uiToast('Failed to save employees to database', 'error');
+
+            try {
+                if (this.data.supabase) {
+                    const targetEmp = id ? this.data.employees.find(e => e.id === parseInt(id)) : this.data.employees[this.data.employees.length - 1];
+                    if (targetEmp) {
+                        const row = this.mapEmployeeToDB(targetEmp);
+                        const { error } = await this.data.supabase.from('employees').upsert(row, { onConflict: 'id' });
+                        if (error) {
+                            console.error('Supabase employee upsert error:', error);
+                            this.uiToast('Failed to save employee to database', 'error');
+                            return;
+                        }
+                    }
                 }
-            }
-            this.closeEmployeeModal();
-            this.renderAdminEmployees();
+                this.closeEmployeeModal();
+                this.renderAdminEmployees();
                 this.uiToast('Employee saved!', 'success');
+            } finally {
                 this.hideLoader();
+            }
         },
 
         // Employee self-registration (QR-based form)
@@ -3179,18 +3161,21 @@
             const emp = this.data.employees.find(e => e.id === id);
             this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', async () => {
                 this.showLoader('Deleting employee...');
-                this.data.employees = this.data.employees.filter(e => e.id !== id);
-                await this.saveData();
-                if (this.data.supabase) {
-                    const { error } = await this.data.supabase.from('employees').delete().eq('id', id);
-                    if (error) {
-                        console.error('Supabase delete error:', error);
-                        this.uiToast('Failed to delete employee from database', 'error');
+                try {
+                    if (this.data.supabase) {
+                        const { error } = await this.data.supabase.from('employees').delete().eq('id', id);
+                        if (error) {
+                            console.error('Supabase delete error:', error);
+                            this.uiToast('Failed to delete employee from database', 'error');
+                            return;
+                        }
                     }
+                    this.data.employees = this.data.employees.filter(e => e.id !== id);
+                    this.renderAdminEmployees();
+                    this.uiToast('Employee deleted', 'success');
+                } finally {
+                    this.hideLoader();
                 }
-                this.renderAdminEmployees();
-                this.uiToast('Employee deleted', 'success');
-                this.hideLoader();
             });
         },
 
@@ -4300,10 +4285,25 @@
         },
 
         renderCleanData() {
-            // no-op for now; placeholder for future enhancements
+            // Set max selectable date to last Saturday (current week is not allowed)
+            const startEl = document.getElementById('clean-start-date');
+            const endEl = document.getElementById('clean-end-date');
+            if (startEl || endEl) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const day = today.getDay();
+                // last Saturday before current week (exclude today if Saturday)
+                const diff = (day + 1) % 7;
+                const offset = diff === 0 ? 7 : diff;
+                const lastSaturday = new Date(today);
+                lastSaturday.setDate(today.getDate() - offset);
+                const maxDate = lastSaturday.toISOString().split('T')[0];
+                if (startEl) startEl.setAttribute('max', maxDate);
+                if (endEl) endEl.setAttribute('max', maxDate);
+            }
         },
 
-        cleanHistoryByDateRange() {
+        async cleanHistoryByDateRange() {
             const startVal = document.getElementById('clean-start-date')?.value;
             const endVal = document.getElementById('clean-end-date')?.value;
             if (!startVal || !endVal) {
@@ -4320,25 +4320,57 @@
                 return;
             }
 
-            const fourWeeksAgo = new Date();
-            fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-            if (endDate > fourWeeksAgo) {
-                this.uiAlert('You can only delete records older than 4 weeks. Please select an older date range.');
+            // Disallow deleting current week data (must end on or before last Saturday)
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const day = today.getDay();
+            const diff = (day + 1) % 7;
+            const offset = diff === 0 ? 7 : diff;
+            const lastSaturday = new Date(today);
+            lastSaturday.setDate(today.getDate() - offset);
+            lastSaturday.setHours(23, 59, 59, 999);
+
+            if (startDate > lastSaturday || endDate > lastSaturday) {
+                this.uiAlert('You cannot delete current week data. Please select a range ending on or before last Saturday.');
                 return;
             }
+
+            const toDelete = this.data.history.filter(h => {
+                const t = new Date(h.timestamp);
+                return t >= startDate && t <= endDate;
+            }).length;
 
             this.uiConfirm(
                 'Delete Selected Range?',
                 `This will permanently delete all clock records from ${this.formatDate(startDate)} to ${this.formatDate(endDate)}.`,
-                () => {
-                    const originalCount = this.data.history.length;
-                    this.data.history = this.data.history.filter(h => {
-                        const t = new Date(h.timestamp);
-                        return t < startDate || t > endDate;
-                    });
-                    const deleted = originalCount - this.data.history.length;
-                    this.saveData();
-                    this.uiToast(`Deleted ${deleted} records.`, 'success');
+                async () => {
+                    try {
+                        this.showLoader('Deleting records...');
+                        if (this.data.supabase) {
+                            const { error } = await this.data.supabase
+                                .from('history')
+                                .delete()
+                                .gte('timestamp', startDate.toISOString())
+                                .lte('timestamp', endDate.toISOString());
+                            if (error) {
+                                this.uiAlert('Failed to delete records from database.');
+                                return;
+                            }
+                            await this.loadHistoryFromSupabase();
+                            this.uiToast(`Deleted ${toDelete} records.`, 'success');
+                        } else {
+                            const originalCount = this.data.history.length;
+                            this.data.history = this.data.history.filter(h => {
+                                const t = new Date(h.timestamp);
+                                return t < startDate || t > endDate;
+                            });
+                            const deleted = originalCount - this.data.history.length;
+                            this.saveData();
+                            this.uiToast(`Deleted ${deleted} records.`, 'success');
+                        }
+                    } finally {
+                        this.hideLoader();
+                    }
                 }
             );
         },

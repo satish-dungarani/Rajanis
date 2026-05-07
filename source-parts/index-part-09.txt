@@ -1,0 +1,400 @@
+        handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const max = 200;
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > max) { h *= max / w; w = max; } }
+                    else { if (h > max) { w *= max / h; h = max; } }
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    document.getElementById('emp-photo-preview').src = dataUrl;
+                    this.data.tempPhoto = dataUrl;
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+
+        // Employee Active toggle (Admin Add/Edit)
+        toggleEmpActive() {
+            const hidden = document.getElementById('emp-active');
+            const toggle = document.getElementById('emp-active-toggle');
+            const knob = document.getElementById('emp-active-knob');
+            if (!hidden || !toggle || !knob) return;
+            const cur = hidden.value === 'true';
+            const next = !cur;
+            hidden.value = next ? 'true' : 'false';
+            if (next) {
+                toggle.classList.remove('bg-white/20');
+                toggle.classList.add('bg-green-500');
+                knob.style.transform = 'translateX(24px)';
+            } else {
+                toggle.classList.add('bg-white/20');
+                toggle.classList.remove('bg-green-500');
+                knob.style.transform = 'translateX(0px)';
+            }
+        },
+
+        // Employee PIN show/hide
+        toggleEmpPinVisibility() {
+            const pinInput = document.getElementById('emp-pin');
+            const eye = document.getElementById('emp-pin-eye');
+            if (!pinInput) return;
+            const isHidden = pinInput.type === 'password';
+            pinInput.type = isHidden ? 'text' : 'password';
+            if (eye) {
+                eye.setAttribute('data-lucide', isHidden ? 'eye-off' : 'eye');
+                lucide.createIcons();
+            }
+        },
+
+        // ACTIVITY LOG
+        renderActivityLog() {
+            const table = document.getElementById('activity-table');
+            if (!table) return;
+
+            const pageSize = this.data.activityPageSize || 50;
+            const search = (this.data.activitySearch || '').toLowerCase();
+            const page = Math.max(1, this.data.activityPage || 1);
+
+            const filtered = this.data.history.filter(h => {
+                if (!search) return true;
+                const name = (h.employeeName || '').toLowerCase();
+                const role = (h.employeeRole || '').toLowerCase();
+                const action = (h.action || '').toLowerCase();
+                return name.includes(search) || role.includes(search) || action.includes(search);
+            });
+
+            const total = filtered.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            this.data.activityPage = Math.min(page, totalPages);
+
+            const start = (this.data.activityPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = filtered.slice(start, end);
+
+            const loadingEl = document.getElementById('activity-loading');
+            if (loadingEl) loadingEl.classList.remove('hidden');
+
+            table.innerHTML = '';
+            if (pageItems.length === 0) {
+                table.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-white/40">No activity records</td></tr>';
+            } else {
+                pageItems.forEach((h) => {
+                    const isIn = h.action.includes('In');
+                    const isAuto = h.action.includes('Auto');
+                    let badgeClass = isIn ? 'badge-green' : 'badge-red';
+                    if (isAuto) badgeClass = 'badge-amber';
+
+                    const hasPhoto = !!h.verificationPhoto;
+                    const photoCell = hasPhoto
+                        ? `<button type="button" onclick="app.viewVerificationPhoto(${this.data.history.indexOf(h)})" class="group">
+                               <img src="${h.verificationPhoto}" class="w-10 h-10 rounded-lg object-cover border border-white/10 bg-black/30 group-hover:opacity-90" loading="lazy" />
+                           </button>`
+                        : '';
+
+                    table.innerHTML += `<tr>
+                        <td class="px-4 py-3 text-white/70">${this.formatDate(h.timestamp)}</td>
+                        <td class="px-4 py-3 text-white/70">${this.formatTime(h.timestamp)}</td>
+                        <td class="px-4 py-3">${h.employeeName}</td>
+                        <td class="px-4 py-3 text-white/50">${h.employeeRole || '-'}</td>
+                        <td class="px-4 py-3">${photoCell}</td>
+                        <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${badgeClass}">${h.action}</span></td>
+                    </tr>`;
+                });
+            }
+
+            const rangeEl = document.getElementById('activity-range');
+            if (rangeEl) {
+                rangeEl.textContent = total === 0
+                    ? 'Showing 0-0 of 0'
+                    : `Showing ${start + 1}-${Math.min(end, total)} of ${total}`;
+            }
+
+            this.renderActivityPagination(totalPages);
+
+            if (loadingEl) {
+                setTimeout(() => loadingEl.classList.add('hidden'), 150);
+            }
+        },
+
+        renderWeeklyEmployeeExcel(emp, weekStart) {
+            const { rows, totalHours, maxSessions } = this.buildWeeklyReportData(emp, weekStart);
+            const sessionHeaders = [];
+            for (let i = 1; i <= Math.max(1, maxSessions); i++) {
+                sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
+            }
+
+            const htmlRows = rows.map(r => {
+                const cells = [];
+                for (let s = 0; s < Math.max(1, maxSessions); s++) {
+                    const sess = r.info.sessions[s];
+                    if (sess) {
+                        cells.push(this.formatTime(sess.in));
+                        cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
+                    } else {
+                        cells.push('');
+                        cells.push('');
+                    }
+                }
+                return `<tr>
+                    <td>${r.dayPlain}${r.isOff ? ' (OFF)' : ''}</td>
+                    ${cells.map(c => `<td>${c}</td>`).join('')}
+                    <td>${r.hoursValue}</td>
+                    <td>${r.noteText}</td>
+                </tr>`;
+            }).join('');
+
+            return `
+                <table>
+                    <tr class="employee"><td colspan="${(Math.max(1, maxSessions) * 2) + 4}">Employee: ${emp.name || '-'} (${emp.role || '-'})</td></tr>
+                    <tr><td colspan="${(Math.max(1, maxSessions) * 2) + 4}">Week: ${this.formatDate(weekStart)} - ${this.formatDate(new Date(weekStart.getTime() + 6*24*60*60*1000))}</td></tr>
+                    <tr></tr>
+                    <tr>
+                        <th>Day</th>
+                        ${sessionHeaders.join('')}
+                        <th>Total Hours</th>
+                        <th>Notes</th>
+                    </tr>
+                    ${htmlRows}
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        ${Array(Math.max(1, maxSessions) * 2).fill('<td></td>').join('')}
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="note">Notes:</td>
+                        <td colspan="${(Math.max(1, maxSessions) * 2) + 3}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td>
+                    </tr>
+                </table>
+            `;
+        },
+
+        renderActivityPagination(totalPages) {
+            const container = document.getElementById('activity-pagination');
+            if (!container) return;
+
+            container.innerHTML = '';
+            if (totalPages <= 1) return;
+
+            const makeBtn = (label, page, disabled = false, active = false) => {
+                const btn = document.createElement('button');
+                btn.textContent = label;
+                btn.className = `px-3 py-1 rounded text-sm ${active ? 'bg-white/20 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+                if (!disabled) btn.onclick = () => this.setActivityPage(page);
+                return btn;
+            };
+
+            const prev = makeBtn('Prev', this.data.activityPage - 1, this.data.activityPage <= 1);
+            container.appendChild(prev);
+
+            const maxButtons = 5;
+            let start = Math.max(1, this.data.activityPage - 2);
+            let end = Math.min(totalPages, start + maxButtons - 1);
+            if (end - start < maxButtons - 1) {
+                start = Math.max(1, end - maxButtons + 1);
+            }
+
+            for (let i = start; i <= end; i++) {
+                container.appendChild(makeBtn(String(i), i, false, i === this.data.activityPage));
+            }
+
+            const next = makeBtn('Next', this.data.activityPage + 1, this.data.activityPage >= totalPages);
+            container.appendChild(next);
+        },
+
+        setActivityPage(page) {
+            this.data.activityPage = page;
+            this.renderActivityLog();
+        },
+
+        setActivitySearch(query) {
+            this.data.activitySearch = query || '';
+            this.data.activityPage = 1;
+            this.renderActivityLog();
+        },
+
+        // View verification photo in a larger modal (read-only)
+        viewVerificationPhoto(historyIndex) {
+            const rec = this.data.history?.[historyIndex];
+            if (!rec || !rec.verificationPhoto) return;
+            const container = document.getElementById('modal-container');
+            const content = document.getElementById('modal-content');
+            if (!container || !content) return;
+
+            content.innerHTML = `
+                <div class="glass-card rounded-2xl p-4 w-full max-w-lg">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-base font-bold">Verification Photo</h3>
+                            <p class="text-white/50 text-xs">${rec.employeeName || ''} • ${this.formatDateTime(rec.timestamp)}</p>
+                        </div>
+                        <button onclick="app.closeModal()" class="p-2 rounded-lg hover:bg-white/10 transition" aria-label="Close">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="rounded-xl overflow-hidden bg-black/40 border border-white/10">
+                        <img src="${rec.verificationPhoto}" class="w-full h-auto object-contain" />
+                    </div>
+                </div>
+            `;
+            container.classList.remove('hidden');
+            lucide.createIcons();
+        },
+
+        // CUSTOM REPORT
+        initCustomReport() {
+            // Populate dropdown with All + active employees
+            const search = document.getElementById('custom-emp-search');
+            const hidden = document.getElementById('custom-emp-id');
+            const dropdown = document.getElementById('custom-emp-dropdown');
+            if (!search || !hidden || !dropdown) return;
+            dropdown.innerHTML = '';
+            // All Employees option
+            const allItem = document.createElement('div');
+            allItem.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+            allItem.innerHTML = `<span class="font-semibold">All Employees</span>`;
+            allItem.onclick = () => {
+                hidden.value = 'all';
+                search.value = 'All Employees';
+                dropdown.classList.add('hidden');
+            };
+            dropdown.appendChild(allItem);
+            // Active employees
+            this.data.employees
+                .filter(e => e.active !== false)
+                .forEach(emp => {
+                    const item = document.createElement('div');
+                    item.className = 'px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2';
+                    item.innerHTML = `<img src="${emp.photo}" class="w-6 h-6 rounded-full"><span>${emp.name}</span>`;
+                    item.onclick = () => {
+                        hidden.value = emp.id;
+                        search.value = emp.name;
+                        dropdown.classList.add('hidden');
+                    };
+                    dropdown.appendChild(item);
+                });
+            // Reset fields
+            document.getElementById('custom-export-btn')?.classList.add('hidden');
+            document.getElementById('custom-report-container')?.classList.add('hidden');
+            document.getElementById('custom-report-table')?.replaceChildren();
+            document.getElementById('custom-report-total').textContent = '0.00';
+            // Clear date range display
+            const dr = document.getElementById('custom-date-range');
+            if (dr) dr.value = '';
+            // Ensure hidden fields are empty
+            const hs = document.getElementById('custom-start-date');
+            const he = document.getElementById('custom-end-date');
+            if (hs) hs.value = '';
+            if (he) he.value = '';
+        },
+
+        showCustomDropdown() {
+            document.getElementById('custom-emp-dropdown')?.classList.remove('hidden');
+        },
+
+        filterCustomDropdown() {
+            const searchVal = document.getElementById('custom-emp-search')?.value.toLowerCase() || '';
+            const dropdown = document.getElementById('custom-emp-dropdown');
+            if (!dropdown) return;
+            dropdown.querySelectorAll('div').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(searchVal) ? '' : 'none';
+            });
+            dropdown.classList.remove('hidden');
+        },
+
+        showCustomDateRange(e) {
+            e?.stopPropagation();
+            const panel = document.getElementById('custom-date-range-panel');
+            if (panel) panel.classList.remove('hidden');
+        },
+
+        applyCustomDateRange() {
+            const startPicker = document.getElementById('custom-start-date-picker');
+            const endPicker = document.getElementById('custom-end-date-picker');
+            const rangeInput = document.getElementById('custom-date-range');
+            const hs = document.getElementById('custom-start-date');
+            const he = document.getElementById('custom-end-date');
+            if (!startPicker || !endPicker || !rangeInput || !hs || !he) return;
+
+            const startVal = startPicker.value;
+            const endVal = endPicker.value;
+            // Set hidden fields
+            hs.value = startVal || '';
+            he.value = endVal || '';
+
+            // Validate immediately to enforce Sunday/Saturday
+            if (!this.validateCustomDates()) return;
+
+            // Display range in text box
+            if (startVal && endVal) {
+                const sDate = new Date(startVal);
+                const eDate = new Date(endVal);
+                const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+                rangeInput.value = `${fmt(sDate)} - ${fmt(eDate)}`;
+            } else {
+                rangeInput.value = '';
+            }
+            // Hide panel
+            const panel = document.getElementById('custom-date-range-panel');
+            if (panel) panel.classList.add('hidden');
+        },
+
+        validateCustomDates() {
+            const start = document.getElementById('custom-start-date')?.value;
+            const end = document.getElementById('custom-end-date')?.value;
+            const err = document.getElementById('custom-date-error');
+            if (!start || !end) {
+                err?.classList.add('hidden');
+                return true;
+            }
+            const s = new Date(start);
+            const e = new Date(end);
+            const valid = s.getDay() === 0 && e.getDay() === 6 && s <= e;
+            if (!valid) err?.classList.remove('hidden'); else err?.classList.add('hidden');
+            return valid;
+        },
+
+        generateCustomReport() {
+            const empIdRaw = document.getElementById('custom-emp-id')?.value;
+            const startVal = document.getElementById('custom-start-date')?.value;
+            const endVal = document.getElementById('custom-end-date')?.value;
+            const err = document.getElementById('custom-date-error');
+            if (!empIdRaw) { this.uiAlert('Please select an employee.'); return; }
+            if (!startVal || !endVal) { this.uiAlert('Please select Start and End dates.'); return; }
+            if (!this.validateCustomDates()) return;
+
+            const weekStart = new Date(startVal);
+            weekStart.setHours(0,0,0,0);
+
+            let employees = [];
+            if (empIdRaw === 'all') {
+                employees = this.data.employees.filter(e => e.active !== false);
+            } else {
+                const emp = this.data.employees.find(e => e.id === parseInt(empIdRaw));
+                if (!emp) { this.uiAlert('Employee not found.'); return; }
+                employees = [emp];
+            }
+
+            const tbody = document.getElementById('custom-report-table');
+            const container = document.getElementById('custom-report-container');
+            const exportBtn = document.getElementById('custom-export-btn');
+            if (!tbody || !container || !exportBtn) return;
+            tbody.innerHTML = '';
+
+            let grandTotal = 0;
+            employees.forEach(emp => {
+                const { rows, totalHours } = this.buildWeeklyReportData(emp, weekStart);
+                grandTotal += totalHours;
+                rows.forEach(r => {
+                    tbody.innerHTML += `<tr>
+                        <td class="px-4 py-3">${emp.name}</td>
+                        <td class="px-4 py-3">${r.dayLabel}${r.offBadge}</td>

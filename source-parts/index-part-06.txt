@@ -1,0 +1,400 @@
+
+                const stopCamera = () => {
+                    if (stream) {
+                        stream.getTracks().forEach(t => t.stop());
+                        stream = null;
+                    }
+                };
+
+                const close = (result) => {
+                    stopCamera();
+                    container.classList.add('hidden');
+                    content.innerHTML = '';
+                    resolve(result);
+                };
+
+                // Start camera
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } },
+                    audio: false 
+                })
+                .then(s => {
+                    stream = s;
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    console.error('Camera error:', err);
+                    errorDiv.classList.remove('hidden');
+                    btnCapture.disabled = true;
+                    btnCapture.classList.add('opacity-50', 'cursor-not-allowed');
+                });
+
+                btnCancel.onclick = () => close(null);
+
+                btnCapture.onclick = () => {
+                    if (!stream) return close(null);
+                    
+                    // Set canvas size (small for storage efficiency)
+                    const maxSize = 160;
+                    canvas.width = maxSize;
+                    canvas.height = maxSize;
+                    
+                    const ctx = canvas.getContext('2d');
+                    // Draw video frame to canvas (cropped square)
+                    const vw = video.videoWidth;
+                    const vh = video.videoHeight;
+                    const size = Math.min(vw, vh);
+                    const sx = (vw - size) / 2;
+                    const sy = (vh - size) / 2;
+                    ctx.drawImage(video, sx, sy, size, size, 0, 0, maxSize, maxSize);
+                    
+                    // Compress to JPEG with low quality for minimal storage
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+                    close(dataUrl);
+                };
+            });
+        },
+
+        // NAVIGATION
+        navigate(view) {
+            const root = document.getElementById('app-root');
+            const template = document.getElementById(`view-${view}`);
+            if (!template) return;
+            root.innerHTML = '';
+            root.appendChild(template.content.cloneNode(true));
+            lucide.createIcons();
+            this.applyBranding();
+            if (view === 'home') {
+                document.getElementById('home-year').textContent = new Date().getFullYear();
+            }
+            if (view === 'employee-list') this.renderEmployeeList();
+            if (view === 'employee-action') this.renderEmployeeAction();
+            if (view === 'admin-layout') {
+                this.data.adminView = 'dashboard';
+                this.loadAdminView('dashboard');
+            }
+        },
+
+        loadAdminView(view) {
+            this.data.adminView = view;
+            const content = document.getElementById('admin-content');
+            const template = document.getElementById(`subview-${view}`);
+            if (!template || !content) return;
+            content.innerHTML = '';
+            content.appendChild(template.content.cloneNode(true));
+            lucide.createIcons();
+            // Update nav active state
+            document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar-sublink').forEach(el => el.classList.remove('active'));
+            const isReportsChild = view === 'reports-activity' || view === 'reports-weekly';
+            if (isReportsChild) {
+                document.getElementById('nav-reports')?.classList.add('active');
+                document.getElementById(`nav-${view}`)?.classList.add('active');
+                this.toggleReportsMenu(true);
+            } else {
+                document.getElementById(`nav-${view}`)?.classList.add('active');
+                this.toggleReportsMenu(false);
+            }
+            if (view === 'clean-data') {
+                document.getElementById('nav-clean-data')?.classList.add('active');
+            }
+            // Render content
+            if (view === 'dashboard') this.renderDashboard();
+            if (view === 'employees') this.renderAdminEmployees();
+            if (view === 'reports-activity') this.renderActivityLog();
+            if (view === 'reports-weekly') this.initWeeklyReport();
+            if (view === 'reports-custom') this.initCustomReport();
+            if (view === 'settings') this.renderSettings();
+            if (view === 'clean-data') this.renderCleanData();
+        },
+
+        toggleReportsMenu(forceState) {
+            const submenu = document.getElementById('reports-submenu');
+            const chevron = document.getElementById('reports-chevron');
+            if (!submenu) return;
+            const isHidden = submenu.classList.contains('hidden');
+            const shouldOpen = forceState !== undefined ? forceState : isHidden;
+            submenu.classList.toggle('hidden', !shouldOpen);
+            if (chevron) chevron.style.transform = shouldOpen ? 'rotate(180deg)' : '';
+        },
+
+        // DATA - Supabase is the primary source of truth
+        loadData() {
+            this.data.employees = [];
+            this.data.history = [];
+            this.loadSupabaseData();
+        },
+
+        async loadSupabaseData() {
+            if (!this.data.supabase) return;
+            try {
+                const { employees, history } = await this.dbReadEmployeesAndHistory();
+                this.data.employees = employees || [];
+                this.data.history = history || [];
+                this.data.employeesLoaded = true;
+                if (document.getElementById('admin-content')) {
+                    if (this.data.adminView === 'dashboard') this.renderDashboard?.();
+                    if (this.data.adminView === 'employees') this.renderAdminEmployees?.();
+                    if (this.data.adminView === 'reports-activity') this.renderActivityLog?.();
+                    if (this.data.adminView === 'reports-weekly') this.initWeeklyReport?.();
+                    if (this.data.adminView === 'reports-custom') this.initCustomReport?.();
+                }
+            } catch (e) {
+                console.error('Supabase load error:', e);
+            }
+        },
+
+        async loadHistoryFromSupabase() {
+            if (!this.data.supabase) return;
+            const { data, error } = await this.data.supabase.from('history').select('*').order('timestamp', { ascending: false });
+            if (error) {
+                console.error('Supabase history load error:', error);
+                return;
+            }
+            this.data.history = (data || []).map(this.mapHistoryFromDB);
+        },
+
+        async saveData() {
+            if (!this.data.supabase || this.data.isResetting) return;
+            this.showLoader('Saving...');
+            try {
+                // Upsert employees (mapped to DB schema)
+                if (this.data.employees.length) {
+                    const rows = this.data.employees.map(e => this.mapEmployeeToDB(e));
+                    const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
+                    if (error) {
+                        this.logError('saveData', error);
+                        this.uiToast('Failed to save employees to database', 'error');
+                    }
+                }
+            } catch (e) {
+                this.logError('saveData', e);
+            } finally {
+                this.hideLoader();
+            }
+        },
+
+        // Sync employees to Supabase (replaces full table; safe for CRUD updates)
+        async syncEmployeesToSupabase() {
+            if (!this.data.supabase) return;
+            const rows = this.data.employees.map(e => this.mapEmployeeToDB(e));
+            const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
+            if (error) {
+                console.error('Supabase employees sync error:', error);
+                this.uiToast('Failed to sync employees to database', 'error');
+            }
+        },
+
+        // Append history record to Supabase
+        async appendHistoryToSupabase(record) {
+            if (!this.data.supabase || !record) return;
+            const { error } = await this.data.supabase.from('history').insert(this.mapHistoryToDB(record));
+            if (error) {
+                console.error('Supabase history append error:', error);
+                this.uiToast('Failed to save clock record', 'error');
+            }
+        },
+
+        // BACKUP & RESTORE
+        async createBackup() {
+            if (!this.data.db) {
+                this.uiAlert('Firebase not connected. Cannot create backup.');
+                return;
+            }
+            try {
+                const snapshot = await this.data.dbRef.get();
+                const data = snapshot.val() || {};
+                const timestamp = new Date().toISOString();
+                const backupId = `backup_${timestamp.replace(/[:.]/g, '-')}`;
+
+                const backupObj = { id: backupId, timestamp, data };
+
+                // Save FULL backup (metadata + data) to Firebase
+                await this.data.db.ref('rajani_backups').push(backupObj);
+
+                // Also trigger file download for admin
+                const blob = new Blob([JSON.stringify(backupObj, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${backupId}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                this.uiToast('Backup created and downloaded', 'success');
+
+                // Refresh backup list UI
+                this.loadBackups();
+            } catch (e) {
+                console.error('Backup error', e);
+                this.uiAlert('Failed to create backup');
+            }
+        },
+
+        async loadBackups() {
+            if (!this.data.db) return;
+            try {
+                const snapshot = await this.data.db.ref('rajani_backups').orderByChild('timestamp').once('value');
+                const val = snapshot.val() || {};
+                // Preserve Firebase keys so we can reference specific backups
+                const list = Object.entries(val)
+                    .map(([key, obj]) => ({ ...obj, _key: key }))
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                this.data.backups = list;
+                this.renderBackups();
+            } catch (e) {
+                console.error('Load backups error', e);
+            }
+        },
+
+        renderBackups() {
+            const tbody = document.getElementById('backup-list');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (!this.data.backups || this.data.backups.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-3 py-2 text-white/40 text-center text-xs">No backups yet</td></tr>';
+                return;
+            }
+            this.data.backups.forEach(b => {
+                const d = new Date(b.timestamp);
+                const dateStr = d.toLocaleDateString('en-GB');
+                const timeStr = d.toLocaleTimeString();
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="px-3 py-1">${dateStr}</td>
+                        <td class="px-3 py-1">${timeStr}</td>
+                        <td class="px-3 py-1 text-right space-x-1">
+                            <button class="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded text-[10px]" onclick="app.downloadBackupFromCloud('${b._key}')">Download</button>
+                            <button class="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded text-[10px]" onclick="app.confirmRestoreFromCloud('${b._key}')">Restore</button>
+                        </td>
+                    </tr>`;
+            });
+        },
+
+        async downloadBackupFromCloud(backupKey) {
+            if (!this.data.db) return;
+            try {
+                const snapshot = await this.data.db.ref('rajani_backups').child(backupKey).get();
+                const backupObj = snapshot.val();
+                if (!backupObj || !backupObj.data) {
+                    this.uiAlert('Backup data not found');
+                    return;
+                }
+                const blob = new Blob([JSON.stringify(backupObj, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${backupObj.id || backupKey}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Download backup error', e);
+                this.uiAlert('Failed to download backup');
+            }
+        },
+
+        confirmRestoreFromCloud(backupKey) {
+            this.uiConfirm('Restore from Backup?', 'This will overwrite current employees and history with the selected backup.', async () => {
+                await this.restoreFromCloud(backupKey);
+            });
+        },
+
+        async restoreFromCloud(backupKey) {
+            if (!this.data.db) {
+                this.uiAlert('Firebase not connected. Cannot restore.');
+                return;
+            }
+            try {
+                const snapshot = await this.data.db.ref('rajani_backups').child(backupKey).get();
+                const backup = snapshot.val() || {};
+                if (!backup.data) {
+                    this.uiAlert('Backup contents not found');
+                    return;
+                }
+                const { employees = [], history = [] } = backup.data;
+                // Write backup back to main data node
+                await this.data.dbRef.set({ employees, history });
+                this.data.employees = employees;
+                this.data.history = history;
+                this.uiToast('Backup restored from cloud', 'success');
+                this.loadAdminView(this.data.adminView);
+            } catch (e) {
+                console.error('Restore error', e);
+                this.uiAlert('Failed to restore backup');
+            }
+        },
+
+        handleBackupImport(evt) {
+            const file = evt.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if (!json || !json.data) {
+                        this.uiAlert('Invalid backup file format');
+                        return;
+                    }
+                    const { employees = [], history = [] } = json.data;
+                    this.uiConfirm('Restore from File?', 'This will overwrite current employees and history with data from the backup file.', async () => {
+                        if (this.data.db) {
+                            await this.data.dbRef.set({ employees, history });
+                        }
+                        this.data.employees = employees;
+                        this.data.history = history;
+                        this.uiToast('Backup restored from file', 'success');
+                        this.loadAdminView(this.data.adminView);
+                    });
+                } catch (err) {
+                    console.error('Import backup error', err);
+                    this.uiAlert('Failed to import backup file');
+                }
+            };
+            reader.readAsText(file);
+        },
+
+
+        // FIREBASE (removed)
+        initFirebase() { },
+
+        saveFirebaseConfig() {
+            this.uiAlert('Firebase has been removed. Configure Supabase instead.');
+        },
+
+        attachCoreListeners() { },
+
+        detachCoreListeners() { },
+
+        setupIdleDetection() {
+            const reset = () => {
+                if (this.data.idleTimer) clearTimeout(this.data.idleTimer);
+                this.data.idleTimer = setTimeout(() => {
+                    // Auto-reload after 1 hour of inactivity
+                    location.reload();
+                }, this.data.idleTimeoutMs);
+            };
+            ['mousemove','keydown','click','scroll','touchstart'].forEach(evt => {
+                document.addEventListener(evt, reset, { passive: true });
+            });
+            reset();
+        },
+
+        // Light-weight cache usage (memory)
+        getHistoryPage(page = 1, pageSize = 50) {
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            return this.data.history.slice(start, end);
+        },
+
+        clearFirebaseConfig() {
+            this.uiAlert('Firebase is not the primary backend. Use Supabase setup instead.');
+        },
+
+
+        // CLOCK
+        startClock() {
+            const update = () => {
+                const now = new Date();
+                const time = now.toLocaleTimeString();
+                const short = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const homeClock = document.getElementById('home-clock');

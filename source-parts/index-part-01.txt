@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<!--
+    =====================================================
+    RAJANI SUPERSTORE LTD - TIME SHEET MANAGEMENT SYSTEM
+    =====================================================
+    VERSION: 1.0.6
+    DATE: Stable Release
+    
+    FEATURES:
+    - Dark Theme UI
+    - Employee Portal (Clock In/Out)
+    - Admin Panel (Dashboard, Employees, Reports, Settings)
+    - Firebase Cloud Sync
+    - Factory Reset (Local + Cloud wipe)
+    - Professional Modal/Toast notifications
+    - Employee Self Registration (QR-based)
+    - Multiple Clock In/Out per day
+    - Backup & Restore
+    - Location Restriction (IP + GPS)
+    
+    RESTORE POINT: This is the stable version.
+    Keep a backup of this file as "index-v1.0.5.html"
+    =====================================================
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Sheet Management</title>
+    <link id="brand-favicon" rel="icon" type="image/png">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --theme-primary: #4f46e5;
+            --theme-primary-hover: #4338ca;
+            --theme-secondary: #0f172a;
+            --theme-accent: #3b82f6;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card-light {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+        .sidebar-link.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border-left: 3px solid var(--theme-accent);
+        }
+        .sidebar-sublink.active {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .emp-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .emp-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .input-dark {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+        select.input-dark, select#sr-gender, select#sr-role, select#emp-gender {
+            /* Match other inputs: soft dark background with light text */
+            background-color: rgba(15, 23, 42, 0.9);
+            color: #e5e7eb;
+        }
+        select.input-dark option {
+            /* Dropdown list: light background with dark text for readability */
+            background-color: #e5e7eb;
+            color: #020617;
+        }
+        .input-dark:focus {
+            outline: none;
+            border-color: var(--theme-accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .input-dark::placeholder { color: rgba(255, 255, 255, 0.4); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent));
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .table-dark th { background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.7); }
+        .table-dark td { color: rgba(255, 255, 255, 0.9); border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .table-dark tr:hover td { background: rgba(255, 255, 255, 0.03); }
+        .badge-green { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .badge-gray { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); }
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .accordion-content.open { max-height: 1000px; }
+        .modal-overlay { animation: modalFadeIn 0.2s ease-out; }
+        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-panel { animation: modalSlideIn 0.3s ease-out; }
+        @keyframes modalSlideIn { from { opacity: 0; transform: scale(0.95) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .toast { animation: toastSlideIn 0.3s ease-out; }
+        @keyframes toastSlideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body class="text-white">
+
+    <div id="app-root" class="min-h-screen"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="fixed inset-0 z-[9998] hidden">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm modal-overlay"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div id="modal-content" class="modal-panel"></div>
+        </div>
+    </div>
+
+    <!-- Global Loader -->
+    <div id="global-loader" class="fixed inset-0 z-[9997] hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="glass-card rounded-2xl px-6 py-4 flex items-center gap-3">
+                <i data-lucide="loader" class="w-5 h-5 animate-spin text-[var(--theme-accent)]"></i>
+                <span id="global-loader-text" class="text-sm">Processing...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- HOME -->
+    <template id="view-home">
+        <div class="min-h-screen flex flex-col fade-in relative overflow-hidden">
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute -top-40 -left-40 w-96 h-96 bg-[var(--theme-primary)] rounded-full blur-3xl opacity-20"></div>
+                <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[var(--theme-accent)] rounded-full blur-3xl opacity-20"></div>
+            </div>
+            <header class="relative z-10 p-6 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div id="home-logo-container" class="w-12 h-12 rounded-xl border border-white/10 flex items-center justify-center"></div>
+                    <div>
+                        <h1 id="home-brand-name" class="text-xl font-bold"></h1>
+                        <p id="home-brand-tagline" class="text-xs text-white/50"></p>
+                    </div>
+                </div>
+                <div id="home-clock" class="font-mono text-lg bg-white/10 px-4 py-2 rounded-lg">--:--</div>
+            </header>
+            <main class="relative z-10 flex-grow flex flex-col items-center justify-center p-6">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-medium mb-2 text-white/70">Welcome To</h2>
+                    <h1 id="home-welcome-brand" class="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-[var(--theme-accent)] via-white to-[var(--theme-primary)] bg-clip-text text-transparent"></h1>
+                    <p class="text-white/50 text-lg">Select your portal to continue</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+                    <button onclick="app.enterEmployeePortal()" class="group glass-card p-8 rounded-2xl text-left hover:border-[var(--theme-accent)] transition-all duration-300">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center mb-6 group-hover:from-blue-500 group-hover:to-blue-600 transition-all">
+                            <i data-lucide="users" class="w-8 h-8 text-blue-400 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">Employee Portal</h3>
+                        <p class="text-white/50">Clock in and out for your shift</p>
+                    </button>
+                    <button onclick="app.navigate('admin-login')" class="group glass-card p-8 rounded-2xl text-left hover:border-[var(--theme-primary)] transition-all duration-300">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 flex items-center justify-center mb-6 group-hover:from-indigo-500 group-hover:to-purple-600 transition-all">
+                            <i data-lucide="shield" class="w-8 h-8 text-indigo-400 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-2">Admin Console</h3>
+                        <p class="text-white/50">Manage staff and view reports</p>
+                    </button>
+                </div>
+            </main>
+            <footer class="relative z-10 p-6 text-center text-white/30 text-sm">
+                © <span id="home-year"></span> <span id="home-footer-brand"></span>. All rights reserved.
+            </footer>
+        </div>
+    </template>
+
+    <!-- EMPLOYEE LIST -->
+    <template id="view-employee-list">
+        <div class="min-h-screen flex flex-col fade-in">
+            <!-- Sticky header so search stays visible while scrolling -->
+            <header class="sticky top-0 z-20 backdrop-blur-xl bg-slate-950/40 border-b border-white/10">
+                <div class="px-6 py-5 max-w-5xl mx-auto">
+                    <div class="flex items-center gap-3">
+                        <button onclick="app.navigate('home')" class="p-2 rounded-lg hover:bg-white/10 transition">
+                            <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                        </button>
+                        <div class="flex-1 text-center">
+                            <h1 class="text-xl sm:text-2xl font-bold">Choose your profile</h1>
+                            <p class="text-white/50 text-sm">Tap your name to clock in / out</p>
+                        </div>
+
+                        <!-- Real-time counters (active employees only) - stacked -->
+                        <div class="flex flex-col gap-1 items-end">
+                            <div class="flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-green-500/20 border border-green-500/30 min-w-[82px]">
+                                <span class="text-green-400/70 text-[10px] uppercase font-semibold">In</span>
+                                <span id="list-count-in" class="text-green-400 font-bold text-xs">0</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-slate-500/20 border border-slate-500/30 min-w-[82px]">
+                                <span class="text-slate-200/70 text-[10px] uppercase font-semibold">Out</span>
+                                <span id="list-count-out" class="text-slate-200 font-bold text-xs">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="relative max-w-md mx-auto">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40"></i>
+                            <input type="text" id="emp-search" placeholder="Search by name or role..." class="w-full input-dark rounded-xl py-3 pl-12 pr-4" onkeyup="app.filterEmployeeCards()">
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-grow px-6 pb-6 pt-6 overflow-auto">
+                <div id="employee-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto"></div>
+                <p id="no-employees-msg" class="hidden text-center text-white/40 py-12">No employees found</p>
+            </main>
+        </div>
+    </template>
+
+    <!-- EMPLOYEE ACTION -->
+    <template id="view-employee-action">
+        <div class="min-h-screen flex flex-col fade-in relative">
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-[var(--theme-primary)] rounded-full blur-3xl opacity-10"></div>
+            </div>
+            <header class="relative z-10 p-6 flex items-center justify-between">
+                <button onclick="app.navigate('employee-list')" class="flex items-center gap-2 text-white/60 hover:text-white transition">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    <span>Back to Profiles</span>
+                </button>
+
+            </header>
+            <main class="relative z-10 flex-grow flex items-center justify-center p-6">
+                <div class="glass-card rounded-3xl p-8 w-full max-w-sm text-center">
+                    <div class="relative inline-block mb-6">
+                        <div class="w-32 h-32 rounded-full p-1 bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-accent)]">
+                            <img id="action-photo" src="" class="w-full h-full rounded-full object-cover bg-slate-800">
+                        </div>
+                        <div id="action-status-dot" class="absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-slate-800"></div>
+                    </div>
+                    <h2 id="action-name" class="text-2xl font-bold mb-1">Employee Name</h2>
+                    <p id="action-role" class="text-white/50 mb-6">Role</p>
+                    <div class="glass-card-light rounded-xl p-4 mb-6 text-left">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-white/50 text-sm">Status</span>
+                            <span id="action-status-badge" class="px-3 py-1 rounded-full text-xs font-bold">--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-white/50 text-sm">Last Activity</span>
+                            <span id="action-last-activity" class="text-sm font-mono">--</span>
+                        </div>
+                    </div>
+                    <button id="action-btn" class="w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95"></button>
+                    <div class="mt-6 flex items-center justify-center gap-2 text-white/40">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        <span id="action-live-clock" class="font-mono">--:--:--</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </template>
+
+    <!-- EMPLOYEE SELF REGISTRATION (for QR link) -->
+    <template id="view-employee-register">
+        <div class="min-h-screen flex items-center justify-center p-6 fade-in relative">
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute -top-40 -left-40 w-96 h-96 bg-[var(--theme-primary)] rounded-full blur-3xl opacity-20"></div>
+                <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[var(--theme-accent)] rounded-full blur-3xl opacity-20"></div>
+            </div>
+            <div class="relative z-10 w-full max-w-lg">
+                <div class="glass-card rounded-3xl p-6 md:p-8 shadow-2xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div id="sr-brand-logo-container" class="w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center"></div>
+                            <div>
+                                <h2 id="sr-brand-name" class="text-lg font-semibold"></h2>
+                                <p class="text-white/50 text-xs">Employee Details Form</p>
+                            </div>
+                        </div>
+                    </div>
+                    <form onsubmit="app.selfRegisterEmployee(event)" class="space-y-4 mt-2">
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Full Name *</label>
+                            <input id="sr-name" type="text" required class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Your full name">
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Gender</label>
+                                <select id="sr-gender" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-white/60 text-xs mb-1">Job Role *</label>
+                                <select id="sr-role" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                                    <option value="">Select role</option>
+                                    <option value="Shop Floor Assistant">Shop Floor Assistant</option>
+                                    <option value="Till Operative">Till Operative</option>
+                                    <option value="Online">Online</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Security">Security</option>
+                                    <option value="Cleaning & Hygiene In charge">Cleaning & Hygiene In charge</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Mobile *</label>
+                                <input id="sr-mobile" type="tel" required class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Your mobile number">
+                            </div>
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Email</label>
+                                <input id="sr-email" type="email" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Optional">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Regular Off Days (if any)</label>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-0" class="rounded"> Sun</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-1" class="rounded"> Mon</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-2" class="rounded"> Tue</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-3" class="rounded"> Wed</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-4" class="rounded"> Thu</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-5" class="rounded"> Fri</label>
+                                <label class="flex items-center gap-1"><input type="checkbox" id="sr-off-6" class="rounded"> Sat</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Photo *</label>
+                            <div class="flex items-center gap-4">
+                                <img id="sr-photo-preview" src="https://api.dicebear.com/9.x/toon-head/svg?seed=Christopher" class="w-16 h-16 rounded-full bg-slate-700 object-cover">
+                                <div class="flex-grow space-y-2">
+                                    <input type="file" id="sr-photo-file" accept="image/*" class="hidden" onchange="app.handleSelfPhotoUpload(event)">
+                                    <button type="button" onclick="document.getElementById('sr-photo-file').click()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Upload</button>
+                                    <p class="text-white/30 text-xs">Please upload a clear profile photo (required).</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-2">
+                            <button type="submit" class="w-full py-2.5 btn-primary rounded-lg text-sm font-semibold">Submit Details</button>
+                        </div>
+                    </form>
+                    <p class="mt-3 text-[11px] text-white/40 text-center">By submitting this form you confirm the information is accurate.</p>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ADMIN LOGIN -->
+    <template id="view-admin-login">
+        <div class="min-h-screen flex items-center justify-center p-6 fade-in">
+            <div class="glass-card rounded-2xl w-full max-w-sm overflow-hidden">
+                <div class="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-accent)] p-8 text-center">
+                    <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="shield-check" class="w-8 h-8"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold">Admin Access</h2>
+                    <p class="text-white/70 text-sm mt-1">Enter your credentials</p>
+                </div>
+                <form onsubmit="app.handleAdminLogin(event)" class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-white/60 text-sm mb-2">Password</label>
+                        <input type="password" id="admin-password" class="w-full input-dark rounded-lg px-4 py-3" placeholder="Enter password">
+                    </div>
+                    <p id="login-error" class="text-red-400 text-sm mb-4 hidden">Incorrect password</p>
+                    <button type="submit" class="w-full btn-primary py-3 rounded-lg font-bold">Login</button>
+                    <button type="button" onclick="app.navigate('home')" class="w-full mt-3 py-2 text-white/50 hover:text-white transition">Cancel</button>
+                </form>

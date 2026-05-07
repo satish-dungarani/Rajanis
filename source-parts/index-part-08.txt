@@ -1,0 +1,399 @@
+
+            // Filter
+            const search = (document.getElementById('admin-emp-search')?.value || '').toLowerCase();
+            const filtered = this.data.employees.filter(emp =>
+                emp.name.toLowerCase().includes(search) || emp.role.toLowerCase().includes(search)
+            );
+
+            // Sort
+            const sort = this.data.employeesSort || { sortKey: 'name', sortDir: 'asc' };
+            const sorted = [...filtered].sort((a,b) => {
+                const mapVal = (obj, key) => {
+                    if (key === 'status') return obj.status === 'in' ? 1 : 0; // in > out
+                    if (typeof obj[key] === 'string') return obj[key].toLowerCase();
+                    return obj[key] ?? '';
+                };
+                const va = mapVal(a, sort.sortKey);
+                const vb = mapVal(b, sort.sortKey);
+                if (va < vb) return sort.sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sort.sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Pagination
+            const pageSize = this.data.employeesPageSize || 10;
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / pageSize));
+            this.data.employeesPage = Math.min(Math.max(this.data.employeesPage || 1, 1), totalPages);
+            const start = (this.data.employeesPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageItems = sorted.slice(start, end);
+
+            // Render rows
+            table.innerHTML = '';
+            pageItems.forEach(emp => {
+                const offDays = (emp.offDays || []).map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ') || '-';
+                const contact = [emp.mobile ? '📱' : '', emp.email ? '📧' : ''].filter(Boolean).join(' ') || '-';
+                table.innerHTML += `<tr data-name="${emp.name.toLowerCase()}" data-role="${emp.role.toLowerCase()}">
+                    <td class="px-4 py-3"><div class="flex items-center gap-3"><img src="${emp.photo}" class="w-10 h-10 rounded-full object-cover bg-slate-700"><span>${emp.name}</span></div></td>
+                    <td class="px-4 py-3 text-white/70">${emp.role}</td>
+                    <td class="px-4 py-3 text-white/70">${contact}</td>
+                    <td class="px-4 py-3"><span class="text-xs text-white/50">${offDays}</span></td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${emp.status === 'in' ? 'badge-green' : 'badge-gray'}">${emp.status === 'in' ? 'In' : 'Out'}</span></td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="app.openEmployeeModal(${emp.id})" class="p-1 hover:bg-white/10 rounded"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                        <button onclick="app.confirmDeleteEmployee(${emp.id})" class="p-1 hover:bg-white/10 rounded text-red-400"><i data-lucide='trash-2' class='w-4 h-4'></i></button>
+                    </td>
+                </tr>`;
+            });
+
+            // Footer info
+            const rangeEl = document.getElementById('admin-emp-range');
+            const pageEl = document.getElementById('admin-emp-page');
+            if (rangeEl) rangeEl.textContent = total === 0 ? 'Showing 0-0 of 0' : `Showing ${start + 1}-${Math.min(end, total)} of ${total}`;
+            if (pageEl) pageEl.textContent = `${this.data.employeesPage} / ${totalPages}`;
+            lucide.createIcons();
+        },
+
+        setEmployeesSort(key) {
+            if (!this.data.employeesSort) this.data.employeesSort = { sortKey: 'name', sortDir: 'asc' };
+            if (this.data.employeesSort.sortKey === key) {
+                this.data.employeesSort.sortDir = this.data.employeesSort.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.data.employeesSort.sortKey = key;
+                this.data.employeesSort.sortDir = 'asc';
+            }
+            this.renderAdminEmployees();
+        },
+
+        changeEmployeesPage(delta) {
+            if (!this.data.employeesPage) this.data.employeesPage = 1;
+            this.data.employeesPage = Math.max(1, this.data.employeesPage + delta);
+            this.renderAdminEmployees();
+        },
+
+        filterAdminEmployees() {
+            this.data.employeesPage = 1;
+            this.renderAdminEmployees();
+        },
+
+        openEmployeeModal(id = null) {
+            const modal = document.getElementById('employee-modal');
+            modal.classList.remove('hidden');
+            document.getElementById('emp-modal-title').textContent = id ? 'Edit Employee' : 'Add Employee';
+            document.getElementById('emp-id').value = id || '';
+
+            // Reset PIN visibility state
+            const pinInput = document.getElementById('emp-pin');
+            const pinEye = document.getElementById('emp-pin-eye');
+            if (pinInput) pinInput.type = 'password';
+            if (pinEye) pinEye.setAttribute('data-lucide', 'eye');
+
+            // Default active = true
+            const setActiveUI = (isActive) => {
+                const toggle = document.getElementById('emp-active-toggle');
+                const knob = document.getElementById('emp-active-knob');
+                const hidden = document.getElementById('emp-active');
+                if (hidden) hidden.value = isActive ? 'true' : 'false';
+                if (toggle && knob) {
+                    if (isActive) {
+                        toggle.classList.remove('bg-white/20');
+                        toggle.classList.add('bg-green-500');
+                        knob.style.transform = 'translateX(24px)';
+                    } else {
+                        toggle.classList.add('bg-white/20');
+                        toggle.classList.remove('bg-green-500');
+                        knob.style.transform = 'translateX(0px)';
+                    }
+                }
+            };
+
+            if (id) {
+                const emp = this.data.employees.find(e => e.id === id);
+                if (emp) {
+                    document.getElementById('emp-name').value = emp.name;
+                    document.getElementById('emp-role').value = emp.role;
+                    document.getElementById('emp-gender').value = emp.gender || '';
+                    document.getElementById('emp-mobile').value = emp.mobile || '';
+                    document.getElementById('emp-email').value = emp.email || '';
+                    document.getElementById('emp-photo-preview').src = emp.photo;
+                    this.data.tempPhoto = emp.photo;
+
+                    // PIN: do not prefill for security. Leave blank.
+                    const pinInput = document.getElementById('emp-pin');
+                    if (pinInput) pinInput.value = '';
+
+                    const displayOrderInput = document.getElementById('emp-display-order');
+                    if (displayOrderInput) displayOrderInput.value = emp.displayOrder || '';
+
+                    for (let i = 0; i < 7; i++) {
+                        document.getElementById(`off-${i}`).checked = (emp.offDays || []).includes(i);
+                    }
+                    setActiveUI(emp.active !== false);
+                }
+            } else {
+                document.getElementById('emp-name').value = '';
+                document.getElementById('emp-role').value = '';
+                document.getElementById('emp-gender').value = '';
+                document.getElementById('emp-mobile').value = '';
+                document.getElementById('emp-email').value = '';
+                const displayOrderInput = document.getElementById('emp-display-order');
+                if (displayOrderInput) displayOrderInput.value = '';
+
+                const pinInput = document.getElementById('emp-pin');
+                if (pinInput) pinInput.value = '';
+
+                for (let i = 0; i < 7; i++) {
+                    document.getElementById(`off-${i}`).checked = false;
+                }
+                this.randomizeAvatar();
+                setActiveUI(true);
+            }
+        },
+
+        closeEmployeeModal() {
+            document.getElementById('employee-modal').classList.add('hidden');
+            this.data.tempPhoto = null;
+        },
+
+        async saveEmployee(e) {
+            e.preventDefault();
+            this.showLoader('Saving employee...');
+            const id = document.getElementById('emp-id').value;
+            const name = document.getElementById('emp-name').value.trim();
+            const role = document.getElementById('emp-role').value.trim();
+            const gender = document.getElementById('emp-gender').value;
+            const mobile = document.getElementById('emp-mobile').value.trim();
+            const email = document.getElementById('emp-email').value.trim();
+            const active = (document.getElementById('emp-active')?.value || 'true') === 'true';
+            const displayOrderRaw = document.getElementById('emp-display-order')?.value.trim();
+            let displayOrder = displayOrderRaw ? parseInt(displayOrderRaw, 10) : null;
+            if (displayOrderRaw) {
+                if (isNaN(displayOrder) || displayOrder <= 0) {
+                    this.uiAlert('Display Order Number must be a positive number.');
+                    return;
+                }
+            }
+
+            // Password (4-digit numeric). Optional unless you decide to enforce later.
+            const pinRaw = (document.getElementById('emp-pin')?.value || '').trim();
+            if (pinRaw && !/^\d{4}$/.test(pinRaw)) {
+                this.uiAlert('Password must be exactly 4 digits.');
+                return;
+            }
+
+            // Store securely (existing approach in this client-side system: lightweight obfuscation via Base64).
+            // NOTE: This is not cryptographic security, but is consistent with the current project constraints.
+            const pinHash = pinRaw ? btoa(pinRaw) : null;
+
+            const offDays = [];
+            for (let i = 0; i < 7; i++) {
+                if (document.getElementById(`off-${i}`).checked) offDays.push(i);
+            }
+            const photo = this.data.tempPhoto || this.getDefaultAvatar(gender);
+            if (id) {
+                const emp = this.data.employees.find(e => e.id === parseInt(id));
+                if (emp) {
+                    // Keep existing data/history unchanged; only update employee record fields
+                    Object.assign(emp, { name, role, gender, mobile, email, photo, offDays, active });
+                    if (displayOrderRaw) {
+                        emp.displayOrder = displayOrder;
+                    } else {
+                        delete emp.displayOrder;
+                    }
+
+                    // Backward-compatible: only set/replace PIN if provided; if left blank, keep existing.
+                    if (pinRaw) {
+                        emp.pinHash = pinHash;
+                    }
+
+                    // If an employee is set inactive, force them to out (does not touch history)
+                    if (emp.active === false) {
+                        emp.status = 'out';
+                    }
+                }
+            } else {
+                const newId = this.data.employees.length > 0 ? Math.max(...this.data.employees.map(e => e.id)) + 1 : 1;
+                const newEmp = { id: newId, name, role, gender, mobile, email, photo, offDays, active, pinHash, status: 'out', lastAction: null };
+                if (displayOrderRaw) newEmp.displayOrder = displayOrder;
+                this.data.employees.push(newEmp);
+            }
+
+            try {
+                if (this.data.supabase) {
+                    const targetEmp = id ? this.data.employees.find(e => e.id === parseInt(id)) : this.data.employees[this.data.employees.length - 1];
+                    if (targetEmp) {
+                        const row = this.mapEmployeeToDB(targetEmp);
+                        const { error } = await this.data.supabase.from('employees').upsert(row, { onConflict: 'id' });
+                        if (error) {
+                            console.error('Supabase employee upsert error:', error);
+                            this.uiToast('Failed to save employee to database', 'error');
+                            return;
+                        }
+                    }
+                }
+                this.closeEmployeeModal();
+                this.renderAdminEmployees();
+                this.uiToast('Employee saved!', 'success');
+            } finally {
+                this.hideLoader();
+            }
+        },
+
+        // Employee self-registration (QR-based form)
+        selfRegisterEmployee(e) {
+            e.preventDefault();
+            if (!this.data.supabase) {
+                this.uiAlert('System is not connected to the server. Please contact your manager.');
+                return;
+            }
+            if (!this.data.employeesLoaded) {
+                this.uiAlert('System is still loading. Please wait a few seconds and try again.');
+                return;
+            }
+
+            const name = document.getElementById('sr-name').value.trim();
+            const role = document.getElementById('sr-role').value.trim();
+            const gender = document.getElementById('sr-gender').value;
+            const mobile = document.getElementById('sr-mobile').value.trim();
+            const email = document.getElementById('sr-email').value.trim();
+            const offDays = [];
+            for (let i = 0; i < 7; i++) {
+                if (document.getElementById(`sr-off-${i}`).checked) offDays.push(i);
+            }
+
+            // Basic validations
+            if (!name || !role) {
+                this.uiAlert('Please fill in your full name and job role.');
+                return;
+            }
+
+            // Name uniqueness check (case-insensitive)
+            const exists = this.data.employees.some(emp => emp.name.trim().toLowerCase() === name.toLowerCase());
+            if (exists) {
+                this.uiAlert('This name already exists in the system. Please contact your manager.');
+                return;
+            }
+
+            if (!mobile) {
+                this.uiAlert('Please enter your mobile number.');
+                return;
+            }
+
+            if (!this.data.tempPhoto) {
+                this.uiAlert('Please upload your profile photo before submitting.');
+                return;
+            }
+
+            const photo = this.data.tempPhoto;
+
+            const newId = this.data.employees.length > 0
+                ? Math.max(...this.data.employees.map(e => e.id || 0)) + 1
+                : 1;
+
+            this.data.employees.push({
+                id: newId,
+                name,
+                role,
+                gender,
+                mobile,
+                email,
+                photo,
+                offDays,
+                active: true,
+                status: 'out',
+                lastAction: null
+            });
+
+            this.saveData();
+            this.uiToast('Your details have been submitted successfully!', 'success');
+
+            // Clear temporary photo reference
+            this.data.tempPhoto = null;
+
+            // Replace form with a simple thank-you screen and attempt to close the tab/window
+            const root = document.getElementById('app-root');
+            if (root) {
+                root.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-6">
+                        <div class="glass-card rounded-3xl p-8 max-w-md text-center">
+                            <h2 class="text-2xl font-bold mb-3">Thank you!</h2>
+                            <p class="text-white/60 mb-1">Your details have been submitted successfully.</p>
+                            <p class="text-white/40 text-sm">You can now close this window.</p>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+
+            // Try to close the tab/window (will only work if it was opened by script)
+            setTimeout(() => {
+                try { window.close(); } catch (err) { /* ignored */ }
+            }, 1000);
+        },
+
+        handleSelfPhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const max = 200;
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > max) { h *= max / w; w = max; } }
+                    else { if (h > max) { w *= max / h; h = max; } }
+                    canvas.width = w;
+                    canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const preview = document.getElementById('sr-photo-preview');
+                    if (preview) preview.src = dataUrl;
+                    this.data.tempPhoto = dataUrl;
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        },
+
+        confirmDeleteEmployee(id) {
+            const emp = this.data.employees.find(e => e.id === id);
+            this.uiConfirm(`Delete ${emp?.name}?`, 'This action cannot be undone.', async () => {
+                this.showLoader('Deleting employee...');
+                try {
+                    if (this.data.supabase) {
+                        const { error } = await this.data.supabase.from('employees').delete().eq('id', id);
+                        if (error) {
+                            console.error('Supabase delete error:', error);
+                            this.uiToast('Failed to delete employee from database', 'error');
+                            return;
+                        }
+                    }
+                    this.data.employees = this.data.employees.filter(e => e.id !== id);
+                    this.renderAdminEmployees();
+                    this.uiToast('Employee deleted', 'success');
+                } finally {
+                    this.hideLoader();
+                }
+            });
+        },
+
+        getDefaultAvatar(gender) {
+            const g = gender === 'female' ? 'women' : 'men';
+            const n = Math.floor(Math.random() * 90) + 1;
+            return `https://randomuser.me/api/portraits/${g}/${n}.jpg`;
+        },
+
+        randomizeAvatar() {
+            const gender = document.getElementById('emp-gender').value;
+            const url = this.getDefaultAvatar(gender);
+            document.getElementById('emp-photo-preview').src = url;
+            this.data.tempPhoto = url;
+        },
+
+        updateGenderAvatar() {
+            if (!document.getElementById('emp-id').value) {
+                this.randomizeAvatar();
+            }
+        },

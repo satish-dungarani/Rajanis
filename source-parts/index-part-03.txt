@@ -1,0 +1,400 @@
+                                <div id="weekly-emp-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg max-h-48 overflow-y-auto hidden z-50"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/50 text-xs mb-1">Week</label>
+                            <input type="date" id="weekly-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.renderWeeklyReport()">
+                        </div>
+                        <div class="flex items-end gap-2">
+                            <button onclick="app.weeklyNav(-1)" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">← Prev</button>
+                            <button onclick="app.weeklyNav(1)" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Next →</button>
+                        </div>
+                    </div>
+                    <p id="weekly-range" class="text-white/40 text-sm mt-3"></p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-dark">
+                        <thead>
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Day</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Sessions (In/Out)</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Notes</th>
+                                <th class="text-right px-4 py-3 text-sm font-medium">Total Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-table"></tbody>
+                        <tfoot class="border-t border-white/10">
+                            <tr>
+                                <td colspan="3" class="px-4 py-3 font-bold">Total Hours (Week)
+                                </td>
+                                <td id="weekly-total" class="px-4 py-3 text-right font-bold text-green-400">0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- REPORTS CUSTOM -->
+    <template id="subview-reports-custom">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Custom Report</h2>
+                    <p class="text-white/50 text-sm">Generate weekly report for one or all employees</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.exportCustomReportExcel()" id="custom-export-btn" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition hidden">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export Excel
+                    </button>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl">
+                <div class="p-4 border-b border-white/10 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="relative">
+                            <label class="block text-white/50 text-xs mb-1">Employee</label>
+                            <div class="relative">
+                                <input type="text" id="custom-emp-search" placeholder="Select employee..." class="w-full input-dark rounded-lg px-3 py-2 text-sm" onfocus="app.showCustomDropdown()" onkeyup="app.filterCustomDropdown()">
+                                <input type="hidden" id="custom-emp-id" value="all">
+                                <div id="custom-emp-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-white/10 rounded-lg max-h-48 overflow-y-auto hidden z-50"></div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-white/50 text-[11px] mb-1">Start Date (Sunday only)</label>
+                                    <input type="date" id="custom-start-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.validateCustomDates()" title="Start (Sunday)">
+                                </div>
+                                <div>
+                                    <label class="block text-white/50 text-[11px] mb-1">End Date (Saturday only)</label>
+                                    <input type="date" id="custom-end-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.validateCustomDates()" title="End (Saturday)">
+                                </div>
+                            </div>
+                            <p class="text-white/40 text-[11px] mt-2">Pick a weekly range: start on Sunday, end on Saturday.</p>
+                        </div>
+                    </div>
+                    <p id="custom-date-error" class="text-red-400 text-xs hidden">Invalid date range. Start must be Sunday and End must be Saturday.</p>
+                    <button onclick="app.generateCustomReport()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                        Generate Report
+                    </button>
+                </div>
+                <div id="custom-report-container" class="p-4 hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full table-dark">
+                            <thead>
+                                <tr>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Day</th>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Sessions (In/Out)</th>
+                                    <th class="text-left px-4 py-3 text-sm font-medium">Notes</th>
+                                    <th class="text-right px-4 py-3 text-sm font-medium">Total Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custom-report-table"></tbody>
+                            <tfoot class="border-t border-white/10">
+                                <tr>
+                                    <td colspan="4" class="px-4 py-3 font-bold">Total Hours (Report)</td>
+                                    <td id="custom-report-total" class="px-4 py-3 text-right font-bold text-green-400">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- CLEAN DATA -->
+    <template id="subview-clean-data">
+        <div class="fade-in max-w-4xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Clean Data</h2>
+            <div class="glass-card rounded-xl p-6 space-y-5">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">Clear Clock‑In/Out History by Date Range</h3>
+                    <p class="text-white/50 text-sm">Select a date range to remove clock records. Current week data cannot be deleted.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-white/50 text-xs mb-1">Start Date</label>
+                        <input type="date" id="clean-start-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-white/50 text-xs mb-1">End Date</label>
+                        <input type="date" id="clean-end-date" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                    ⚠️ You cannot delete records from the current week. Select a range ending on or before last Saturday.
+                </div>
+                <button onclick="app.cleanHistoryByDateRange()" class="w-full py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition">Delete Selected Range</button>
+            </div>
+        </div>
+    </template>
+
+    <!-- SETTINGS -->
+    <template id="subview-settings">
+        <div class="fade-in max-w-3xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Settings</h2>
+            <div class="space-y-3">
+                <!-- Theme -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="palette" class="w-5 h-5 text-[var(--theme-accent)]"></i> Accent Color</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10">
+                            <div class="grid grid-cols-4 gap-2 mt-3">
+                                <button onclick="app.setTheme('blue')" class="h-10 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 hover:opacity-80 transition relative"><span id="theme-check-blue" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                                <button onclick="app.setTheme('green')" class="h-10 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-80 transition relative"><span id="theme-check-green" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                                <button onclick="app.setTheme('purple')" class="h-10 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-80 transition relative"><span id="theme-check-purple" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                                <button onclick="app.setTheme('orange')" class="h-10 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-80 transition relative"><span id="theme-check-orange" class="absolute inset-0 flex items-center justify-center text-white hidden"><i data-lucide="check" class="w-5 h-5"></i></span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Branding -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="building" class="w-5 h-5 text-[var(--theme-accent)]"></i> Company Branding</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 space-y-3 mt-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">Company Name</label>
+                                    <input type="text" id="brand-name" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Rajani Superstore">
+                                </div>
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">Tagline</label>
+                                    <input type="text" id="brand-tagline" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="Time Management">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Logo URL (optional)</label>
+                                <input type="text" id="brand-logo" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="https://...">
+                            </div>
+                            <button onclick="app.saveBranding()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save Branding</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Location Restriction (GPS-Based) -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="map-pin" class="w-5 h-5 text-[var(--theme-accent)]"></i> Location Restriction (GPS)</span>
+                        <span id="gps-restrict-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Disabled</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div>
+                                    <p class="text-sm font-medium">Enable GPS Restriction</p>
+                                    <p class="text-xs text-white/50">Employees must be within the configured GPS radius</p>
+                                </div>
+                                <button id="gps-restrict-toggle" onclick="app.toggleGpsRestriction()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="gps-toggle-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+                            <div class="p-3 rounded-lg bg-white/5">
+                                <p class="text-sm font-medium mb-2">GPS Location</p>
+                                <div class="grid grid-cols-2 gap-2 mb-2">
+                                    <div>
+                                        <label class="block text-white/40 text-xs mb-1">Latitude</label>
+                                        <input type="text" id="store-latitude" class="w-full input-dark rounded-lg px-2 py-1.5 text-xs font-mono" placeholder="e.g., 51.5074">
+                                    </div>
+                                    <div>
+                                        <label class="block text-white/40 text-xs mb-1">Longitude</label>
+                                        <input type="text" id="store-longitude" class="w-full input-dark rounded-lg px-2 py-1.5 text-xs font-mono" placeholder="e.g., -0.1278">
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="block text-white/40 text-xs mb-1">Allowed Radius (meters)</label>
+                                    <input type="number" id="store-radius" class="w-full input-dark rounded-lg px-2 py-1.5 text-xs" placeholder="e.g., 100" value="100">
+                                </div>
+                                <button onclick="app.getCurrentGPS()" class="w-full py-1.5 bg-white/10 hover:bg-white/20 rounded text-xs transition flex items-center justify-center gap-1">
+                                    <i data-lucide="crosshair" class="w-3 h-3"></i> Get Current GPS Location
+                                </button>
+                            </div>
+                            <button onclick="app.saveGpsSettings()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save GPS Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Restriction (IP-Based) -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="network" class="w-5 h-5 text-[var(--theme-accent)]"></i> Network Restriction (IP)</span>
+                        <span id="ip-restrict-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Disabled</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div>
+                                    <p class="text-sm font-medium">Enable IP Restriction</p>
+                                    <p class="text-xs text-white/50">Employees must be on the allowed network IP</p>
+                                </div>
+                                <button id="ip-restrict-toggle" onclick="app.toggleNetworkRestriction()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="ip-toggle-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+                            <div class="p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-xs text-white/50">Your Current IP Address</p>
+                                    <button onclick="app.fetchCurrentIP()" class="text-xs text-[var(--theme-accent)] hover:underline">Refresh</button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <code id="current-ip-address" class="flex-1 text-sm font-mono text-cyan-400 bg-black/30 px-2 py-1.5 rounded">Loading...</code>
+                                    <button onclick="app.useCurrentIPAsStore()" class="px-2 py-1.5 rounded bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs transition" title="Use as Store IP">
+                                        <i data-lucide="check" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Allowed Store IP Address</label>
+                                <input type="text" id="store-ip-address" class="w-full input-dark rounded-lg px-3 py-2 text-sm font-mono" placeholder="e.g., 203.45.67.89">
+                                <p class="text-xs text-white/40 mt-1">Find your store's IP at <a href="https://whatismyip.com" target="_blank" class="text-[var(--theme-accent)] hover:underline">whatismyip.com</a></p>
+                            </div>
+                            <button onclick="app.saveNetworkSettings()" class="w-full py-2 btn-primary rounded-lg text-sm font-medium">Save IP Settings</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Clock-In Verification -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="scan-face" class="w-5 h-5 text-[var(--theme-accent)]"></i> Clock-In Verification</span>
+                        <span id="verification-mode-badge" class="px-2 py-0.5 rounded text-xs badge-gray">PIN + Camera</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 mt-3 space-y-4">
+                            <p class="text-white/50 text-xs">Enable PIN at profile selection and/or camera capture on clock actions.</p>
+                            
+                            <!-- PIN Toggle -->
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                        <i data-lucide="key-round" class="w-4 h-4 text-white/60"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium">Employee PIN</p>
+                                        <p class="text-xs text-white/40">Require PIN before entering clock screen</p>
+                                    </div>
+                                </div>
+                                <button id="pin-verify-toggle" onclick="app.togglePinVerification()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="pin-verify-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+
+                            <!-- Camera Toggle -->
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                                        <i data-lucide="camera" class="w-4 h-4 text-white/60"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium">Camera Capture</p>
+                                        <p class="text-xs text-white/40">Capture photo on each clock in/out</p>
+                                    </div>
+                                </div>
+                                <button id="camera-verify-toggle" onclick="app.toggleCameraVerification()" class="relative w-12 h-6 rounded-full transition-colors bg-white/20">
+                                    <span id="camera-verify-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform"></span>
+                                </button>
+                            </div>
+                            
+                            <div class="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                                <p class="text-xs text-blue-400"><i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Camera mode captures a compressed image for verification only. Images are optimized for minimal storage.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supabase Setup -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="database" class="w-5 h-5 text-[var(--theme-accent)]"></i> Supabase Setup</span>
+                        <span id="supabase-status-badge" class="px-2 py-0.5 rounded text-xs badge-gray">Not Configured</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 space-y-4 mt-3">
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Supabase Project URL</label>
+                                <input id="supabase-url" type="text" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="https://your-project.supabase.co">
+                            </div>
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Supabase API Key (anon)</label>
+                                <input id="supabase-key" type="text" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="eyJhbGciOi...">
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="app.testSupabaseConnection()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Test Connection</button>
+                                <button onclick="app.saveSupabaseConfig()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Save Config</button>
+                                <button onclick="app.disconnectSupabase()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Disconnect</button>
+                                <button onclick="app.initSupabaseSchema()" class="flex-1 py-2 btn-primary rounded-lg text-sm transition">Initialize Database</button>
+                            </div>
+                            <div class="p-3 rounded-lg bg-white/5 text-xs text-white/60">
+                                <div class="font-semibold mb-1">SQL Schema (run once in Supabase SQL editor):</div>
+                                <textarea id="supabase-sql" rows="6" readonly class="w-full input-dark rounded-lg px-3 py-2 text-[11px] font-mono"></textarea>
+                                <button onclick="app.copySupabaseSQL()" class="mt-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Copy SQL</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reset Password -->
+                <div class="glass-card rounded-xl overflow-hidden">
+                    <button onclick="app.toggleAccordion(this)" class="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition">
+                        <span class="flex items-center gap-3 font-medium"><i data-lucide="lock" class="w-5 h-5 text-[var(--theme-accent)]"></i> Reset Password</span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                    </button>
+                    <div class="accordion-content">
+                        <div class="p-4 pt-0 border-t border-white/10 space-y-3 mt-3">
+                            <div>
+                                <label class="block text-white/50 text-xs mb-1">Old Password *</label>
+                                <input id="admin-old-password" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="••••">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">New Password *</label>
+                                    <input id="admin-new-password" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="••••">
+                                </div>
+                                <div>
+                                    <label class="block text-white/50 text-xs mb-1">Confirm New Password *</label>
+                                    <input id="admin-confirm-password" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="••••">
+                                </div>
+                            </div>
+                            <button onclick="app.updateAdminPassword()" class="w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm transition">Update Password</button>
+                            <p class="text-white/30 text-[11px]">Password must be exactly 4 digits.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+    const app = {
+        data: {
+            employees: [],
+            history: [],
+            selectedEmployeeId: null,
+            adminView: 'dashboard',
+            tempPhoto: null,
+            currentTheme: 'blue',
+            supabase: null,
+            isResetting: false,
+            locationSettings: null,
+            currentIP: null,
+            employeesPage: 1,
+            employeesPageSize: 10,
+            employeesSort: { sortKey: 'name', sortDir: 'asc' },
+            gpsRestrictionEnabled: false,
+            ipRestrictionEnabled: false,
+            backups: [],
+            employeesLoaded: false,
+            pinVerificationEnabled: true,
+            cameraVerificationEnabled: false,
+            activityPage: 1,
+            activityPageSize: 50,

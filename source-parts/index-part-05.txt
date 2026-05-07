@@ -1,0 +1,400 @@
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+                this.uiToast('IP settings saved!', 'success');
+            } else {
+                this.uiAlert('Cannot save - no database connection');
+            }
+        },
+
+        toggleGpsRestriction() {
+            const settings = this.data.locationSettings || {};
+            if (!settings.latitude || !settings.longitude) {
+                this.uiAlert('Please configure GPS coordinates first, then save before enabling.');
+                return;
+            }
+            this.data.gpsRestrictionEnabled = !this.data.gpsRestrictionEnabled;
+            if (this.data.supabase) {
+                this.saveSupabaseSetting('locationSettings', {
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+            }
+            this.updateRestrictionUI();
+            this.uiToast(`GPS restriction ${this.data.gpsRestrictionEnabled ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        toggleNetworkRestriction() {
+            const settings = this.data.locationSettings || {};
+            if (!settings.storeIP) {
+                this.uiAlert('Please configure Store IP first, then save before enabling.');
+                return;
+            }
+            this.data.ipRestrictionEnabled = !this.data.ipRestrictionEnabled;
+            if (this.data.supabase) {
+                this.saveSupabaseSetting('locationSettings', {
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+            }
+            this.updateRestrictionUI();
+            this.uiToast(`IP restriction ${this.data.ipRestrictionEnabled ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        updateRestrictionUI() {
+            const gpsToggle = document.getElementById('gps-restrict-toggle');
+            const gpsKnob = document.getElementById('gps-toggle-knob');
+            const gpsBadge = document.getElementById('gps-restrict-badge');
+            const ipToggle = document.getElementById('ip-restrict-toggle');
+            const ipKnob = document.getElementById('ip-toggle-knob');
+            const ipBadge = document.getElementById('ip-restrict-badge');
+
+            if (gpsToggle && gpsKnob) {
+                if (this.data.gpsRestrictionEnabled) {
+                    gpsToggle.classList.remove('bg-white/20');
+                    gpsToggle.classList.add('bg-green-500');
+                    gpsKnob.style.transform = 'translateX(24px)';
+                } else {
+                    gpsToggle.classList.add('bg-white/20');
+                    gpsToggle.classList.remove('bg-green-500');
+                    gpsKnob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (gpsBadge) {
+                gpsBadge.textContent = this.data.gpsRestrictionEnabled ? 'Enabled' : 'Disabled';
+                gpsBadge.className = `px-2 py-0.5 rounded text-xs ${this.data.gpsRestrictionEnabled ? 'badge-green' : 'badge-gray'}`;
+            }
+
+            if (ipToggle && ipKnob) {
+                if (this.data.ipRestrictionEnabled) {
+                    ipToggle.classList.remove('bg-white/20');
+                    ipToggle.classList.add('bg-green-500');
+                    ipKnob.style.transform = 'translateX(24px)';
+                } else {
+                    ipToggle.classList.add('bg-white/20');
+                    ipToggle.classList.remove('bg-green-500');
+                    ipKnob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (ipBadge) {
+                ipBadge.textContent = this.data.ipRestrictionEnabled ? 'Enabled' : 'Disabled';
+                ipBadge.className = `px-2 py-0.5 rounded text-xs ${this.data.ipRestrictionEnabled ? 'badge-green' : 'badge-gray'}`;
+            }
+        },
+
+        async fetchCurrentIP() {
+            const ipEl = document.getElementById('current-ip-address');
+            if (ipEl) ipEl.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const data = await response.json();
+                this.data.currentIP = data.ip;
+                if (ipEl) ipEl.textContent = data.ip;
+            } catch (e) {
+                if (ipEl) ipEl.textContent = 'Failed to fetch';
+                console.error('IP fetch error:', e);
+            }
+        },
+
+        useCurrentIPAsStore() {
+            const currentIP = this.data.currentIP;
+            if (!currentIP || currentIP === 'Loading...' || currentIP === 'Failed to fetch') {
+                this.uiToast('Please wait for IP to load', 'error');
+                return;
+            }
+            const ipInput = document.getElementById('store-ip-address');
+            if (ipInput) ipInput.value = currentIP;
+            this.uiToast('Current IP set as Store IP', 'success');
+        },
+
+        getCurrentGPS() {
+            if (!navigator.geolocation) {
+                this.uiAlert('GPS is not supported in this browser.');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    document.getElementById('store-latitude').value = lat;
+                    document.getElementById('store-longitude').value = lng;
+                    this.uiToast('GPS coordinates captured!', 'success');
+                },
+                (error) => {
+                    let msg = 'Failed to get location';
+                    if (error.code === 1) msg = 'Location permission denied';
+                    else if (error.code === 2) msg = 'Location unavailable';
+                    else if (error.code === 3) msg = 'Location timeout';
+                    this.uiAlert(msg);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        },
+
+        async enterEmployeePortal() {
+            const btn = document.querySelector('button[onclick="app.enterEmployeePortal()"]');
+            const originalContent = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<div class="flex items-center gap-3"><i data-lucide="loader" class="w-8 h-8 animate-spin text-[var(--theme-accent)]"></i><div class="text-left"><h3 class="text-xl font-bold">Verifying Location...</h3><p class="text-white/50 text-sm">Please wait</p></div></div>';
+                lucide.createIcons();
+            }
+
+            try {
+                const check = await this.checkLocationRestriction();
+                if (check.allowed) {
+                    this.navigate('employee-list');
+                } else {
+                    this.uiAlert(`🚫 Whoa there!\n\n${check.reason}\n\n🏪 You need to be physically at the store to access this portal. No remote clocking allowed! 😉`);
+                }
+            } catch (e) {
+                this.uiAlert('Error verifying location. Please try again.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    lucide.createIcons();
+                }
+            }
+        },
+
+        async checkLocationRestriction() {
+            const settings = this.data.locationSettings;
+            const gpsEnabled = this.data.gpsRestrictionEnabled;
+            const ipEnabled = this.data.ipRestrictionEnabled;
+
+            if (!settings || (!gpsEnabled && !ipEnabled)) {
+                return { allowed: true };
+            }
+
+            let ipMatch = !ipEnabled;
+            let gpsMatch = !gpsEnabled;
+            let failureReasons = [];
+
+            // IP check (if enabled)
+            if (ipEnabled) {
+                if (settings.storeIP) {
+                    try {
+                        const response = await fetch('https://api.ipify.org?format=json');
+                        const data = await response.json();
+                        const currentIP = data.ip;
+                        if (currentIP === settings.storeIP) {
+                            ipMatch = true;
+                        } else {
+                            failureReasons.push('🏠 You need to be on the store network to clock in.');
+                        }
+                    } catch (e) {
+                        console.error('IP check failed:', e);
+                        failureReasons.push('🔌 Could not verify network. Please try again.');
+                    }
+                } else {
+                    failureReasons.push('⚙️ Store IP not set. Please contact your manager.');
+                }
+            }
+
+            // GPS check (if enabled)
+            if (gpsEnabled) {
+                if (settings.latitude && settings.longitude) {
+                    try {
+                        await new Promise((resolve) => {
+                            if (!navigator.geolocation) {
+                                failureReasons.push('📱 GPS not supported on this device.');
+                                resolve();
+                                return;
+                            }
+
+                            navigator.geolocation.getCurrentPosition(
+                                (position) => {
+                                    const distance = this.calculateDistance(
+                                        position.coords.latitude,
+                                        position.coords.longitude,
+                                        parseFloat(settings.latitude),
+                                        parseFloat(settings.longitude)
+                                    );
+                                    if (distance <= (settings.radius || 100)) {
+                                        gpsMatch = true;
+                                    } else {
+                                        failureReasons.push('📍 You appear to be outside the store GPS area.');
+                                    }
+                                    resolve();
+                                },
+                                () => {
+                                    failureReasons.push('📱 GPS could not be verified. Enable location and try again.');
+                                    resolve();
+                                },
+                                { enableHighAccuracy: true, timeout: 10000 }
+                            );
+                        });
+                    } catch (e) {
+                        failureReasons.push('🛰️ GPS error. Please try again.');
+                    }
+                } else {
+                    failureReasons.push('⚙️ Store GPS not set. Please contact your manager.');
+                }
+            }
+
+            if (ipMatch && gpsMatch) {
+                return { allowed: true };
+            }
+            return { allowed: false, reason: failureReasons.join('\n') };
+        },
+
+        calculateDistance(lat1, lon1, lat2, lon2) {
+            // Haversine formula
+            const R = 6371e3; // Earth's radius in meters
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+            return R * c; // Distance in meters
+        },
+
+        renderLocationSettings() {
+            const settings = this.data.locationSettings || {};
+            const ipEl = document.getElementById('store-ip-address');
+            const latEl = document.getElementById('store-latitude');
+            const lngEl = document.getElementById('store-longitude');
+            const radEl = document.getElementById('store-radius');
+            if (ipEl) ipEl.value = settings.storeIP || '';
+            if (latEl) latEl.value = settings.latitude || '';
+            if (lngEl) lngEl.value = settings.longitude || '';
+            if (radEl) radEl.value = settings.radius || 100;
+            this.updateRestrictionUI();
+            this.fetchCurrentIP();
+        },
+
+        // VERIFICATION SETTINGS (independent toggles)
+        async togglePinVerification() {
+            const next = !this.data.pinVerificationEnabled;
+            this.data.pinVerificationEnabled = next;
+            let ok = true;
+            if (this.data.supabase) {
+                const res = await this.saveSupabaseSetting('pinVerificationEnabled', next);
+                ok = !res.error;
+            }
+            if (!ok) {
+                this.data.pinVerificationEnabled = !next;
+                this.updateVerificationSettingsUI();
+                return;
+            }
+            this.updateVerificationSettingsUI();
+            this.uiToast(`Employee PIN ${next ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        async toggleCameraVerification() {
+            const next = !this.data.cameraVerificationEnabled;
+            this.data.cameraVerificationEnabled = next;
+            let ok = true;
+            if (this.data.supabase) {
+                const res = await this.saveSupabaseSetting('cameraVerificationEnabled', next);
+                ok = !res.error;
+            }
+            if (!ok) {
+                this.data.cameraVerificationEnabled = !next;
+                this.updateVerificationSettingsUI();
+                return;
+            }
+            this.updateVerificationSettingsUI();
+            this.uiToast(`Camera Capture ${next ? 'enabled' : 'disabled'}`, 'success');
+        },
+
+        updateVerificationSettingsUI() {
+            const pinToggle = document.getElementById('pin-verify-toggle');
+            const pinKnob = document.getElementById('pin-verify-knob');
+            const camToggle = document.getElementById('camera-verify-toggle');
+            const camKnob = document.getElementById('camera-verify-knob');
+            const badge = document.getElementById('verification-mode-badge');
+
+            if (pinToggle && pinKnob) {
+                if (this.data.pinVerificationEnabled) {
+                    pinToggle.classList.remove('bg-white/20');
+                    pinToggle.classList.add('bg-green-500');
+                    pinKnob.style.transform = 'translateX(24px)';
+                } else {
+                    pinToggle.classList.add('bg-white/20');
+                    pinToggle.classList.remove('bg-green-500');
+                    pinKnob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (camToggle && camKnob) {
+                if (this.data.cameraVerificationEnabled) {
+                    camToggle.classList.remove('bg-white/20');
+                    camToggle.classList.add('bg-green-500');
+                    camKnob.style.transform = 'translateX(24px)';
+                } else {
+                    camToggle.classList.add('bg-white/20');
+                    camToggle.classList.remove('bg-green-500');
+                    camKnob.style.transform = 'translateX(0)';
+                }
+            }
+
+            if (badge) {
+                const pin = this.data.pinVerificationEnabled;
+                const cam = this.data.cameraVerificationEnabled;
+                if (pin && cam) {
+                    badge.textContent = 'PIN + Camera';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-blue';
+                } else if (pin) {
+                    badge.textContent = 'PIN Only';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                } else if (cam) {
+                    badge.textContent = 'Camera Only';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-amber';
+                } else {
+                    badge.textContent = 'None';
+                    badge.className = 'px-2 py-0.5 rounded text-xs badge-gray';
+                }
+            }
+        },
+
+        // Camera capture for clock verification
+        async captureVerificationPhoto() {
+            return new Promise((resolve) => {
+                const container = document.getElementById('modal-container');
+                const content = document.getElementById('modal-content');
+                if (!container || !content) return resolve(null);
+
+                content.innerHTML = `
+                    <div class="glass-card rounded-2xl p-6 w-full max-w-lg">
+                        <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+                            <i data-lucide="camera" class="w-5 h-5 text-[var(--theme-accent)]"></i>
+                            Verification Photo
+                        </h3>
+                        <p class="text-white/60 text-sm mb-4">Please look at the camera and click Capture.</p>
+                        <div class="relative rounded-lg overflow-hidden bg-black mb-4">
+                            <video id="camera-preview" autoplay playsinline class="w-full h-64 object-cover"></video>
+                            <canvas id="camera-canvas" class="hidden"></canvas>
+                        </div>
+                        <div id="camera-error" class="hidden p-3 rounded-lg bg-red-500/20 text-red-400 text-sm mb-4">
+                            <i data-lucide="alert-circle" class="w-4 h-4 inline mr-1"></i>
+                            <span>Camera access denied or not available</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" id="camera-cancel" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition">Cancel</button>
+                            <button type="button" id="camera-capture" class="flex-1 py-2 bg-green-500 hover:bg-green-600 rounded-lg font-medium transition flex items-center justify-center gap-2">
+                                <i data-lucide="camera" class="w-4 h-4"></i> Capture
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.classList.remove('hidden');
+                lucide.createIcons();
+
+                const video = document.getElementById('camera-preview');
+                const canvas = document.getElementById('camera-canvas');
+                const btnCapture = document.getElementById('camera-capture');
+                const btnCancel = document.getElementById('camera-cancel');
+                const errorDiv = document.getElementById('camera-error');
+                let stream = null;

@@ -1,0 +1,400 @@
+                const actionClock = document.getElementById('action-live-clock');
+                if (homeClock) homeClock.textContent = short;
+                if (actionClock) actionClock.textContent = time;
+            };
+            update();
+            setInterval(update, 1000);
+        },
+
+        // DATE HELPERS
+        formatDate(d) {
+            const date = new Date(d);
+            const dd = String(date.getDate()).padStart(2, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const yyyy = date.getFullYear();
+            return `${dd}/${mm}/${yyyy}`;
+        },
+
+        formatTime(d) {
+            return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        },
+
+        formatDateTime(d) {
+            return this.formatDate(d) + ' ' + this.formatTime(d);
+        },
+
+        getWeekStart(d) {
+            const date = new Date(d);
+            const day = date.getDay();
+            date.setDate(date.getDate() - day);
+            date.setHours(0, 0, 0, 0);
+            return date;
+        },
+
+        // EMPLOYEE LIST
+        renderEmployeeList() {
+            const grid = document.getElementById('employee-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            // Only show ACTIVE employees in Employee Portal
+            const activeEmployees = this.data.employees.filter(e => e.active !== false);
+            const orderedEmployees = activeEmployees.some(e => e.displayOrder)
+                ? [...activeEmployees].sort((a, b) => (a.displayOrder ?? 999999) - (b.displayOrder ?? 999999))
+                : activeEmployees;
+
+            // Update real-time counters (active employees only)
+            const inCount = activeEmployees.filter(e => e.status === 'in').length;
+            const outCount = activeEmployees.filter(e => e.status !== 'in').length;
+            const inEl = document.getElementById('list-count-in');
+            const outEl = document.getElementById('list-count-out');
+            if (inEl) inEl.textContent = inCount;
+            if (outEl) outEl.textContent = outCount;
+
+            // Helpful debug line so you can SEE it in console
+            console.debug('[Employee Portal Counters] Active:', activeEmployees.length, 'In:', inCount, 'Out:', outCount);
+
+            orderedEmployees.forEach(emp => {
+                const card = document.createElement('div');
+                card.className = 'emp-card glass-card rounded-2xl p-6 cursor-pointer text-center relative';
+                card.dataset.name = emp.name.toLowerCase();
+                card.dataset.role = emp.role.toLowerCase();
+                card.onclick = async () => {
+                    this.showLoader('Loading profile...');
+                    try {
+                        this.data.selectedEmployeeId = emp.id;
+                        if (this.data.pinVerificationEnabled && emp.pinHash) {
+                            const ok = await this.promptEmployeePin(emp);
+                            if (!ok) return;
+                        }
+                        this.navigate('employee-action');
+                    } catch (e) {
+                        this.logError('employeeCardClick', e, { employeeId: emp.id });
+                        this.uiAlert('Something went wrong while opening the profile. Please try again.');
+                    } finally {
+                        this.hideLoader();
+                    }
+                };
+                const statusClass = emp.status === 'in' ? 'bg-green-500' : 'bg-slate-600';
+                const todayIndex = new Date().getDay();
+                const hasDayOffToday = Array.isArray(emp.offDays) && emp.offDays.includes(todayIndex);
+                card.innerHTML = `
+                    ${hasDayOffToday ? '<span class="absolute top-1 right-1 z-10 badge-amber px-2 py-1 rounded-full text-[10px] font-semibold uppercase">Off</span>' : ''}
+                    <div class="relative inline-block mb-4">
+                        <img src="${emp.photo}" class="w-24 h-24 rounded-full object-cover mx-auto bg-slate-700">
+                        <div class="absolute bottom-1 right-1 w-5 h-5 rounded-full ${statusClass} border-2 border-slate-800"></div>
+                    </div>
+                    <h3 class="font-bold text-lg">${emp.name}</h3>
+                    <div class="flex items-center justify-center gap-2 text-white/50 text-sm">
+                        <span>${emp.role}</span>
+                    </div>
+                    <span class="inline-block mt-3 px-3 py-1 rounded-full text-xs font-medium ${emp.status === 'in' ? 'badge-green' : 'badge-gray'}">${emp.status === 'in' ? 'Clocked In' : 'Clocked Out'}</span>
+                `;
+                grid.appendChild(card);
+            });
+        },
+
+        filterEmployeeCards() {
+            const search = document.getElementById('emp-search')?.value.toLowerCase() || '';
+            const cards = document.querySelectorAll('.emp-card');
+            let found = false;
+            cards.forEach(card => {
+                const match = card.dataset.name.includes(search) || card.dataset.role.includes(search);
+                card.style.display = match ? '' : 'none';
+                if (match) found = true;
+            });
+            const msg = document.getElementById('no-employees-msg');
+            if (msg) msg.classList.toggle('hidden', found);
+        },
+
+        // EMPLOYEE ACTION
+        renderEmployeeAction() {
+            const emp = this.data.employees.find(e => e.id === this.data.selectedEmployeeId);
+            if (!emp) return;
+            // If employee becomes inactive, do not allow clock screen
+            if (emp.active === false) {
+                this.uiAlert('This profile is inactive. Please contact your manager.');
+                this.navigate('employee-list');
+                return;
+            }
+            
+
+            document.getElementById('action-photo').src = emp.photo;
+            document.getElementById('action-name').textContent = emp.name;
+            document.getElementById('action-role').textContent = emp.role;
+            const dot = document.getElementById('action-status-dot');
+            const badge = document.getElementById('action-status-badge');
+            const btn = document.getElementById('action-btn');
+            const lastAct = document.getElementById('action-last-activity');
+            if (emp.status === 'in') {
+                dot.className = 'absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-slate-800 bg-green-500';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold badge-green';
+                badge.textContent = 'Clocked In';
+                btn.className = 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-red-500 hover:bg-red-600';
+                btn.innerHTML = '<i data-lucide="log-out" class="w-5 h-5 inline mr-2"></i>Clock Out';
+                btn.onclick = () => this.clockAction('out');
+            } else {
+                dot.className = 'absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-slate-800 bg-slate-600';
+                badge.className = 'px-3 py-1 rounded-full text-xs font-bold badge-gray';
+                badge.textContent = 'Clocked Out';
+                btn.className = 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-green-500 hover:bg-green-600';
+                btn.innerHTML = '<i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i>Clock In';
+                btn.onclick = () => this.clockAction('in');
+            }
+            lastAct.textContent = emp.lastAction ? this.formatDateTime(emp.lastAction) : 'No activity';
+            lucide.createIcons();
+        },
+
+        async clockAction(type) {
+            const emp = this.data.employees.find(e => e.id === this.data.selectedEmployeeId);
+            if (!emp) return;
+            // Prevent inactive employees from clocking in/out
+            if (emp.active === false) {
+                this.uiAlert('This profile is inactive. Please contact your manager.');
+                this.navigate('employee-list');
+                return;
+            }
+
+            if (this.data.isClockActionRunning) return;
+            this.data.isClockActionRunning = true;
+            this.showLoader('Saving clock action...');
+
+            const btn = document.getElementById('action-btn');
+
+            // If already in this state, ignore (prevents accidental double clicks)
+            if ((type === 'in' && emp.status === 'in') || (type === 'out' && emp.status === 'out')) {
+                this.data.isClockActionRunning = false;
+                return;
+            }
+
+            // Verification based on settings (camera only here)
+            let verificationPhoto = null;
+
+            if (this.data.cameraVerificationEnabled) {
+                // Camera capture mode
+                verificationPhoto = await this.captureVerificationPhoto();
+                if (!verificationPhoto) {
+                    // User cancelled or camera failed
+                    this.hideLoader();
+                    this.data.isClockActionRunning = false;
+                    return;
+                }
+            }
+            
+            // Check location restriction (GPS/IP) only if any restriction is enabled
+            if (this.data.gpsRestrictionEnabled || this.data.ipRestrictionEnabled) {
+                btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 inline mr-2 animate-spin"></i>Verifying Location...';
+                btn.disabled = true;
+                btn.className = 'w-full py-4 rounded-xl font-bold text-lg bg-slate-600 cursor-wait';
+                lucide.createIcons();
+
+                const locationCheck = await this.checkLocationRestriction();
+                
+                if (!locationCheck.allowed) {
+                    btn.innerHTML = type === 'in' ? '<i data-lucide="log-in" class="w-5 h-5 inline mr-2"></i>Clock In' : '<i data-lucide="log-out" class="w-5 h-5 inline mr-2"></i>Clock Out';
+                    btn.disabled = false;
+                    btn.className = type === 'in' 
+                        ? 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-green-500 hover:bg-green-600'
+                        : 'w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95 bg-red-500 hover:bg-red-600';
+                    btn.onclick = () => this.clockAction(type);
+                    lucide.createIcons();
+                    
+                    this.uiAlert(`🙅 Nope, can't do that!\n\n${locationCheck.reason}\n\n🏪 Come to the store first, then try again! We're watching... 👀`);
+                    this.hideLoader();
+                    this.data.isClockActionRunning = false;
+                    return;
+                }
+            }
+
+            const now = new Date().toISOString();
+
+            // Record ONLY the event times (multiple in/out per day supported)
+            const historyRecord = {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                employeeRole: emp.role,
+                action: type === 'in' ? 'Clocked In' : 'Clocked Out',
+                timestamp: now
+            };
+            
+            // Attach verification photo if captured (camera mode)
+            if (verificationPhoto) {
+                historyRecord.verificationPhoto = verificationPhoto;
+            }
+
+            if (type === 'in') {
+                emp.status = 'in';
+                emp.lastAction = now;
+            } else {
+                emp.status = 'out';
+                emp.lastAction = now;
+            }
+            
+            this.data.history.unshift(historyRecord);
+
+            this.saveData();
+            this.appendHistoryToSupabase(historyRecord);
+            this.uiToast(type === 'in' ? 'Clocked In' : 'Clocked Out', 'success');
+
+            btn.innerHTML = type === 'in' ? '✓ Clocked In Successfully!' : '✓ Clocked Out Successfully!';
+            btn.disabled = true;
+            btn.className = 'w-full py-4 rounded-xl font-bold text-lg bg-slate-700 cursor-not-allowed';
+            setTimeout(() => this.navigate('employee-list'), 1500);
+            this.hideLoader();
+            this.data.isClockActionRunning = false;
+        },
+
+        // Prompt employee for 4-digit PIN and verify against stored pinHash
+        promptEmployeePin(emp) {
+            return new Promise((resolve) => {
+                const container = document.getElementById('modal-container');
+                const content = document.getElementById('modal-content');
+                if (!container || !content) return resolve(false);
+
+                const title = `Enter PIN for ${emp.name}`;
+                content.innerHTML = `
+                    <div class="glass-card rounded-2xl p-6 w-full max-w-sm">
+                        <h3 class="text-lg font-bold mb-2">${title}</h3>
+                        <p class="text-white/60 text-sm mb-4">Please enter your 4-digit password to continue.</p>
+                        <div class="mb-4">
+                            <label class="block text-white/60 text-xs mb-1">Password (4-digit PIN)</label>
+                            <div class="relative">
+                                <input id="pin-verify" type="password" inputmode="numeric" maxlength="4" pattern="\\d{4}" class="w-full input-dark rounded-lg px-3 py-2 pr-10 text-sm" placeholder="••••" />
+                                <button type="button" id="pin-verify-toggle" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/10 text-white/60" title="Show/Hide">
+                                    <i id="pin-verify-eye" data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <p id="pin-verify-error" class="text-red-400 text-xs mt-2 hidden">Incorrect PIN. Please try again.</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" id="pin-cancel" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition">Cancel</button>
+                            <button type="button" id="pin-confirm" class="flex-1 py-2 bg-green-500 hover:bg-green-600 rounded-lg font-medium transition">Confirm</button>
+                        </div>
+                    </div>
+                `;
+                container.classList.remove('hidden');
+                lucide.createIcons();
+
+                const input = document.getElementById('pin-verify');
+                const err = document.getElementById('pin-verify-error');
+                const btnConfirm = document.getElementById('pin-confirm');
+                const btnCancel = document.getElementById('pin-cancel');
+                const btnToggle = document.getElementById('pin-verify-toggle');
+                const eye = document.getElementById('pin-verify-eye');
+
+                const close = () => {
+                    container.classList.add('hidden');
+                    // clear content to avoid stale handlers
+                    content.innerHTML = '';
+                };
+
+                const verify = () => {
+                    const pin = (input?.value || '').trim();
+                    // Normalize: keep digits only (helps if user pastes spaces)
+                    const normalized = pin.replace(/\s+/g, '');
+                    if (!/^\d{4}$/.test(normalized)) {
+                        if (err) {
+                            err.textContent = 'PIN must be exactly 4 digits.';
+                            err.classList.remove('hidden');
+                        }
+                        return;
+                    }
+                    const hash = btoa(normalized);
+                    const stored = String(emp.pinHash || '').trim();
+                    if (hash === stored) {
+                        close();
+                        return resolve(true);
+                    }
+                    if (err) {
+                        err.textContent = 'Incorrect PIN. Please try again.';
+                        err.classList.remove('hidden');
+                    }
+                    if (input) input.value = '';
+                    if (input) input.focus();
+                    if (input) input.value = '';
+                    if (input) input.focus();
+                };
+
+                if (btnCancel) {
+                    btnCancel.onclick = () => {
+                        close();
+                        resolve(false);
+                    };
+                }
+                if (btnConfirm) btnConfirm.onclick = verify;
+                if (input) {
+                    input.oninput = () => err?.classList.add('hidden');
+                    input.onkeydown = (ev) => {
+                        if (ev.key === 'Enter') {
+                            ev.preventDefault();
+                            verify();
+                        }
+                    };
+                    setTimeout(() => input.focus(), 50);
+                }
+                if (btnToggle && input) {
+                    btnToggle.onclick = () => {
+                        const hidden = input.type === 'password';
+                        input.type = hidden ? 'text' : 'password';
+                        if (eye) {
+                            eye.setAttribute('data-lucide', hidden ? 'eye-off' : 'eye');
+                            lucide.createIcons();
+                        }
+                    };
+                }
+            });
+        },
+
+        // ADMIN LOGIN
+        handleAdminLogin(e) {
+            e.preventDefault();
+            const pw = document.getElementById('admin-password').value.trim();
+            const err = document.getElementById('login-error');
+            if (!/^\d{4}$/.test(pw)) {
+                if (err) err.classList.remove('hidden');
+                return;
+            }
+
+            const stored = this.data.adminPasswordHash || btoa('1234');
+            const match = btoa(pw) === stored;
+            if (match) {
+                if (err) err.classList.add('hidden');
+                this.navigate('admin-layout');
+            } else {
+                if (err) err.classList.remove('hidden');
+            }
+        },
+
+        // DASHBOARD
+        renderDashboard() {
+            const elTotal = document.getElementById('stat-total');
+            if (elTotal) elTotal.textContent = this.data.employees.length;
+
+            const elIn = document.getElementById('stat-in');
+            if (elIn) elIn.textContent = this.data.employees.filter(e => e.status === 'in').length;
+
+            const today = new Date().toDateString();
+            const elAct = document.getElementById('stat-activity');
+            if (elAct) elAct.textContent = this.data.history.filter(h => new Date(h.timestamp).toDateString() === today).length;
+
+            const table = document.getElementById('dashboard-recent');
+            if (!table) return;
+            table.innerHTML = '';
+
+            this.data.history.slice(0, 5).forEach(h => {
+                const isIn = h.action.includes('In');
+                table.innerHTML += `<tr>
+                    <td class="px-4 py-3">${h.employeeName}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium ${isIn ? 'badge-green' : 'badge-red'}">${h.action}</span></td>
+                    <td class="px-4 py-3 text-white/50 text-sm">${this.formatDateTime(h.timestamp)}</td>
+                </tr>`;
+            });
+            if (this.data.history.length === 0) {
+                table.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-white/40">No activity yet</td></tr>';
+            }
+        },
+
+        // ADMIN EMPLOYEES (sorting + pagination)
+        renderAdminEmployees() {
+            const table = document.getElementById('admin-emp-table');
+            if (!table) return;

@@ -1,0 +1,400 @@
+            activitySearch: '',
+            adminPasswordHash: null,
+            photoMap: {},
+            listenersAttached: false,
+            idleTimer: null,
+            idleTimeoutMs: 60 * 60 * 1000,
+            settingsLoaded: false,
+            isClockActionRunning: false,
+            errorLogs: []
+        },
+
+        // Supabase (default data source)
+        getSupabaseConfig() {
+            const url = 'https://itxqovvmersuxiekrsce.supabase.co';
+            const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0eHFvdnZtZXJzdXhpZWtyc2NlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MDY1NDgsImV4cCI6MjA4ODM4MjU0OH0.5rt2jP6Xo-m_X1Bs1vVKvfWDnmFtrUwMMsflwZHosNE';
+            return { url, key };
+        },
+
+        // Data adapter: Supabase primary
+        getDataSource() {
+            return this.data.supabase ? 'supabase' : 'none';
+        },
+
+        async dbReadEmployeesAndHistory() {
+            const src = this.getDataSource();
+            if (src === 'supabase') {
+                this.showLoader('Loading data...');
+                try {
+                    const { data: employees, error: empErr } = await this.data.supabase.from('employees').select('*');
+                    if (empErr) throw empErr;
+                    const { data: history, error: histErr } = await this.data.supabase.from('history').select('*').order('timestamp', { ascending: false });
+                    if (histErr) throw histErr;
+                    return { employees: (employees || []).map(this.mapEmployeeFromDB), history: (history || []).map(this.mapHistoryFromDB) };
+                } catch (e) {
+                    this.logError('dbReadEmployeesAndHistory', e);
+                    throw e;
+                } finally {
+                    this.hideLoader();
+                }
+            }
+            return { employees: [], history: [] };
+        },
+
+        async syncEmployeesToSupabase() {
+            if (!this.data.supabase) return;
+            const rows = this.data.employees.map(e => this.mapEmployeeToDB(e));
+            const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
+            if (error) {
+                console.error('Supabase employees sync error:', error);
+                this.uiToast('Failed to sync employees to database', 'error');
+            }
+        },
+
+        async appendHistoryToSupabase(record) {
+            if (!this.data.supabase || !record) return;
+            const { error } = await this.data.supabase.from('history').insert(this.mapHistoryToDB(record));
+            if (error) {
+                console.error('Supabase history append error:', error);
+                this.uiToast('Failed to save clock record', 'error');
+            }
+        },
+
+        async clearSupabaseEmployees() {
+            if (!this.data.supabase) return;
+            const { error } = await this.data.supabase.from('employees').delete().neq('id', 0);
+            if (error) console.error('Supabase clear employees error:', error);
+        },
+
+        async clearSupabaseHistory() {
+            if (!this.data.supabase) return;
+            const { error } = await this.data.supabase.from('history').delete().neq('id', 0);
+            if (error) console.error('Supabase clear history error:', error);
+        },
+
+        async clearSupabaseSettings() {
+            if (!this.data.supabase) return;
+            const { error } = await this.data.supabase.from('app_settings').delete().neq('key', '');
+            if (error) console.error('Supabase clear settings error:', error);
+        },
+
+
+        mapEmployeeFromDB(row) {
+            if (!row) return null;
+            return {
+                id: row.id,
+                name: row.name,
+                role: row.role,
+                gender: row.gender || '',
+                mobile: row.mobile || '',
+                email: row.email || '',
+                photo: row.photo || '',
+                offDays: row.off_days || [],
+                status: row.status || 'out',
+                lastAction: row.last_action || null,
+                active: row.active !== false,
+                displayOrder: row.display_order || null,
+                pinHash: row.pin_hash || null
+            };
+        },
+
+        mapEmployeeToDB(emp) {
+            return {
+                id: emp.id,
+                name: emp.name,
+                role: emp.role,
+                gender: emp.gender || null,
+                mobile: emp.mobile || null,
+                email: emp.email || null,
+                photo: emp.photo || null,
+                off_days: emp.offDays || [],
+                status: emp.status || 'out',
+                last_action: emp.lastAction || null,
+                active: emp.active !== false,
+                display_order: emp.displayOrder || null,
+                pin_hash: emp.pinHash || null
+            };
+        },
+
+        mapHistoryFromDB(row) {
+            if (!row) return null;
+            return {
+                id: row.id,
+                employeeId: row.employee_id,
+                employeeName: row.employee_name,
+                employeeRole: row.employee_role,
+                action: row.action,
+                timestamp: row.timestamp,
+                verificationPhoto: row.verification_photo || null
+            };
+        },
+
+        mapHistoryToDB(rec) {
+            return {
+                employee_id: rec.employeeId,
+                employee_name: rec.employeeName,
+                employee_role: rec.employeeRole,
+                action: rec.action,
+                timestamp: rec.timestamp,
+                verification_photo: rec.verificationPhoto || null
+            };
+        },
+
+        async dbWriteEmployees(employees) {
+            const src = this.getDataSource();
+            if (src === 'supabase') {
+                if (employees && employees.length) {
+                    const rows = employees.map(e => this.mapEmployeeToDB(e));
+                    const { error } = await this.data.supabase.from('employees').upsert(rows, { onConflict: 'id' });
+                    if (error) {
+                        console.error('Supabase employees upsert error:', error);
+                        this.uiToast('Failed to save employees to database', 'error');
+                    }
+                }
+                return;
+            }
+        },
+
+        async dbAppendHistory(record) {
+            const src = this.getDataSource();
+            if (!record) return;
+            if (src === 'supabase') {
+                const { error } = await this.data.supabase.from('history').insert(this.mapHistoryToDB(record));
+                if (error) {
+                    console.error('Supabase history insert error:', error);
+                    this.uiToast('Failed to save clock record', 'error');
+                }
+                return;
+            }
+        },
+
+        async dbReadSettings() {
+            const src = this.getDataSource();
+            if (src === 'supabase') {
+                const { data, error } = await this.data.supabase.from('app_settings').select('*');
+                if (error) throw error;
+                const map = {};
+                data.forEach(row => { map[row.key] = row.value; });
+                return map;
+            }
+            return {};
+        },
+
+        async dbWriteSetting(key, value) {
+            const src = this.getDataSource();
+            if (src === 'supabase') {
+                await this.data.supabase.from('app_settings').upsert({ key, value }, { onConflict: 'key' });
+                return;
+            }
+            if (src === 'firebase') {
+                await this.data.db.ref('rajani_settings').child(key).set(value);
+            }
+        },
+
+        initSupabase() {
+            const cfg = this.getSupabaseConfig();
+            const url = (cfg?.url || '').trim();
+            const key = (cfg?.key || '').trim();
+            if (!url || !key || !window.supabase?.createClient) {
+                this.data.supabase = null;
+                return;
+            }
+            try {
+                this.data.supabase = window.supabase.createClient(url, key, { auth: { persistSession: false } });
+                this.updateSupabaseStatus(true);
+            } catch (e) {
+                this.logError('initSupabase', e);
+                this.data.supabase = null;
+            }
+        },
+
+        async testSupabaseConnection() {
+            this.initSupabase();
+            if (!this.data.supabase) {
+                this.uiAlert('Please enter Supabase URL and Key first.');
+                return;
+            }
+            try {
+                const { error } = await this.data.supabase.from('employees').select('id').limit(1);
+                if (error) throw error;
+                this.uiToast('Supabase connection successful', 'success');
+                this.updateSupabaseStatus(true);
+            } catch (e) {
+                console.error(e);
+                this.updateSupabaseStatus(false);
+                this.uiAlert('Supabase connection failed. Check URL, Key, and schema.');
+            }
+        },
+
+        updateSupabaseStatus(isConnected) {
+            const badge = document.getElementById('supabase-status-badge');
+            if (badge) {
+                badge.textContent = isConnected ? 'Connected' : 'Not Configured';
+                badge.className = isConnected ? 'px-2 py-0.5 rounded text-xs badge-green' : 'px-2 py-0.5 rounded text-xs badge-gray';
+            }
+        },
+
+        saveSupabaseConfig() {
+            const url = document.getElementById('supabase-url')?.value.trim() || '';
+            const key = document.getElementById('supabase-key')?.value.trim() || '';
+            if (!url || !key) {
+                this.uiAlert('Supabase URL and API key are required.');
+                return;
+            }
+            if (!this.data.supabase) {
+                this.uiAlert('Supabase is not connected. Please check your credentials.');
+                return;
+            }
+            this.uiToast('Supabase configuration is fixed to the system default.', 'info');
+        },
+
+        disconnectSupabase() {
+            this.uiAlert('Supabase connection is required and cannot be disconnected.');
+        },
+
+        async loadSupabaseSettings() {
+            if (!this.data.supabase) return;
+            try {
+                const { data, error } = await this.data.supabase.from('app_settings').select('*');
+                if (error) throw error;
+                const map = {};
+                data.forEach(row => { map[row.key] = row.value; });
+                if (map.branding) { this.data.branding = map.branding; this.applyBranding(); }
+                if (map.theme) { this.data.currentTheme = map.theme; this.applyTheme(); }
+                if (map.locationSettings) {
+                    this.data.locationSettings = map.locationSettings;
+                    this.data.gpsRestrictionEnabled = !!map.locationSettings.gpsEnabled;
+                    this.data.ipRestrictionEnabled = !!map.locationSettings.ipEnabled;
+                    this.renderLocationSettings();
+                }
+                if (map.pinVerificationEnabled !== undefined) this.data.pinVerificationEnabled = !!map.pinVerificationEnabled;
+                if (map.cameraVerificationEnabled !== undefined) this.data.cameraVerificationEnabled = !!map.cameraVerificationEnabled;
+                if (map.adminPasswordHash) this.data.adminPasswordHash = String(map.adminPasswordHash);
+                this.updateVerificationSettingsUI();
+                this.updateSupabaseStatus(true);
+                this.data.settingsLoaded = true;
+                if (this.data.adminView === 'settings') {
+                    this.updateVerificationSettingsUI();
+                }
+            } catch (e) {
+                console.error('Supabase settings load error', e);
+            }
+        },
+
+        async saveSupabaseSetting(key, value) {
+            if (!this.data.supabase) return { error: 'no_supabase' };
+            const { error } = await this.data.supabase
+                .from('app_settings')
+                .upsert({ key, value }, { onConflict: 'key' });
+            if (error) {
+                console.error('Supabase setting save error:', error);
+                this.uiToast('Failed to save setting', 'error');
+            }
+            return { error };
+        },
+
+        initSupabaseSchema() {
+            const sql = this.getSupabaseSQL();
+            const textarea = document.getElementById('supabase-sql');
+            if (textarea) textarea.value = sql;
+            this.uiAlert('Please run the SQL in Supabase SQL editor. Use Copy SQL.');
+        },
+
+        copySupabaseSQL() {
+            const sql = this.getSupabaseSQL();
+            navigator.clipboard.writeText(sql).then(() => {
+                this.uiToast('SQL copied to clipboard', 'success');
+            });
+        },
+
+        getSupabaseSQL() {
+            return `-- Employees\ncreate table if not exists employees (\n  id bigint primary key,\n  name text not null,\n  role text not null,\n  gender text,\n  mobile text,\n  email text,\n  photo text,\n  off_days int[],\n  status text,\n  last_action timestamptz,\n  active boolean default true,\n  display_order int,\n  pin_hash text\n);\n\n-- History\ncreate table if not exists history (\n  id bigint generated always as identity primary key,\n  employee_id bigint references employees(id),\n  employee_name text,\n  employee_role text,\n  action text,\n  timestamp timestamptz,\n  verification_photo text\n);\n\n-- Settings\ncreate table if not exists app_settings (\n  key text primary key,\n  value jsonb\n);\n\n-- Backups\ncreate table if not exists backups (\n  id bigint generated always as identity primary key,\n  created_at timestamptz default now(),\n  data jsonb\n);`;
+        },
+
+        // INIT
+        init() {
+            this.loadTheme();
+            this.loadLocationSettings();
+            this.initSupabase();
+
+            if (!this.data.supabase) {
+                this.uiAlert('Supabase is not configured. Please set it up in Settings to use the system.');
+                this.navigate('home');
+                return;
+            }
+
+            this.loadData();
+            this.loadSupabaseSettings();
+
+            this.startClock();
+            this.setupIdleDetection();
+            // Support direct navigation via URL hash for QR-based pages
+            const hash = (window.location.hash || '').replace('#', '');
+            if (hash === 'employee-register') {
+                this.navigate('employee-register');
+            } else {
+                this.navigate('home');
+            }
+        },
+
+
+
+
+
+        // LOCATION RESTRICTION
+        loadLocationSettings() {
+            this.data.locationSettings = {
+                storeIP: '',
+                latitude: '',
+                longitude: '',
+                radius: 100
+            };
+            this.data.gpsRestrictionEnabled = false;
+            this.data.ipRestrictionEnabled = false;
+        },
+
+        saveGpsSettings() {
+            const latitude = document.getElementById('store-latitude')?.value.trim() || '';
+            const longitude = document.getElementById('store-longitude')?.value.trim() || '';
+            const radius = parseInt(document.getElementById('store-radius')?.value) || 100;
+
+            if (!latitude || !longitude) {
+                this.uiAlert('Please enter GPS latitude and longitude.');
+                return;
+            }
+
+            this.data.locationSettings = {
+                ...this.data.locationSettings,
+                latitude,
+                longitude,
+                radius
+            };
+
+            if (this.data.supabase) {
+                this.saveSupabaseSetting('locationSettings', {
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,
+                    ipEnabled: this.data.ipRestrictionEnabled
+                });
+                this.uiToast('GPS settings saved!', 'success');
+            } else {
+                this.uiAlert('Cannot save - no database connection');
+            }
+        },
+
+        saveNetworkSettings() {
+            const storeIP = document.getElementById('store-ip-address')?.value.trim() || '';
+            if (!storeIP) {
+                this.uiAlert('Please enter a Store IP Address.');
+                return;
+            }
+
+            this.data.locationSettings = {
+                ...this.data.locationSettings,
+                storeIP
+            };
+
+            if (this.data.supabase) {
+                this.saveSupabaseSetting('locationSettings', {
+                    ...this.data.locationSettings,
+                    gpsEnabled: this.data.gpsRestrictionEnabled,

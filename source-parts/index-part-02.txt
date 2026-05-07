@@ -1,0 +1,400 @@
+            </div>
+        </div>
+    </template>
+
+    <!-- ADMIN LAYOUT -->
+    <template id="view-admin-layout">
+        <div class="min-h-screen flex">
+            <!-- Sidebar -->
+            <aside id="admin-sidebar" class="w-64 bg-slate-900 border-r border-white/10 flex-col hidden md:flex">
+                <div class="p-6 border-b border-white/10">
+                    <div class="flex items-center gap-3">
+                        <div id="sidebar-logo" class="w-10 h-10 rounded-lg border border-white/10 flex items-center justify-center"></div>
+                        <div>
+                            <h1 id="sidebar-brand" class="font-bold"></h1>
+                            <p id="sidebar-tagline" class="text-white/40 text-xs"></p>
+                        </div>
+                    </div>
+                </div>
+                <nav class="flex-grow p-4 space-y-1">
+                    <button onclick="app.loadAdminView('dashboard')" id="nav-dashboard" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="app.loadAdminView('employees')" id="nav-employees" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                        <span>Employees</span>
+                    </button>
+                    <div>
+                        <button onclick="app.toggleReportsMenu()" id="nav-reports" class="sidebar-link w-full flex items-center justify-between px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                            <span class="flex items-center gap-3">
+                                <i data-lucide="file-text" class="w-5 h-5"></i>
+                                <span>Reports</span>
+                            </span>
+                            <i id="reports-chevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                        </button>
+                        <div id="reports-submenu" class="ml-4 mt-1 space-y-1 hidden">
+                            <button onclick="app.loadAdminView('reports-activity')" id="nav-reports-activity" class="sidebar-sublink w-full flex items-center gap-3 px-4 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition text-sm">
+                                <i data-lucide="activity" class="w-4 h-4"></i>
+                                <span>Activity Log</span>
+                            </button>
+                            <button onclick="app.loadAdminView('reports-weekly')" id="nav-reports-weekly" class="sidebar-sublink w-full flex items-center gap-3 px-4 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition text-sm">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>Weekly Report</span>
+                            </button>
+                            <button onclick="app.loadAdminView('reports-custom')" id="nav-reports-custom" class="sidebar-sublink w-full flex items-center gap-3 px-4 py-2 rounded-lg text-white/50 hover:text-white hover:bg-white/5 transition text-sm">
+                                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                <span>Custom Report</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="app.loadAdminView('settings')" id="nav-settings" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                        <span>Settings</span>
+                    </button>
+                    <button onclick="app.loadAdminView('clean-data')" id="nav-clean-data" class="sidebar-link w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        <span>Clean Data</span>
+                    </button>
+                </nav>
+                <div class="p-4 border-t border-white/10">
+                    <button onclick="app.navigate('home')" class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-red-400 hover:bg-red-500/10 transition">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </aside>
+            <!-- Mobile Header -->
+            <div class="flex-grow flex flex-col">
+                <header class="md:hidden p-4 bg-slate-900 border-b border-white/10 flex items-center justify-between">
+                    <span id="mobile-brand" class="font-bold"></span>
+                    <button onclick="document.getElementById('admin-sidebar').classList.toggle('hidden');document.getElementById('admin-sidebar').classList.toggle('fixed');document.getElementById('admin-sidebar').classList.toggle('inset-0');document.getElementById('admin-sidebar').classList.toggle('z-50');" class="p-2 hover:bg-white/10 rounded-lg">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </header>
+                <!-- Content -->
+                <main id="admin-content" class="flex-grow p-6 overflow-auto custom-scrollbar"></main>
+            </div>
+        </div>
+    </template>
+
+    <!-- DASHBOARD -->
+    <template id="subview-dashboard">
+        <div class="fade-in max-w-6xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="stat-card rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white/50 text-sm">Total Staff</p>
+                            <p id="stat-total" class="text-3xl font-bold mt-1">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                            <i data-lucide="users" class="w-6 h-6 text-blue-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white/50 text-sm">Clocked In</p>
+                            <p id="stat-in" class="text-3xl font-bold mt-1 text-green-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                            <i data-lucide="user-check" class="w-6 h-6 text-green-400"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card rounded-xl p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-white/50 text-sm">Today's Activity</p>
+                            <p id="stat-activity" class="text-3xl font-bold mt-1 text-amber-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                            <i data-lucide="activity" class="w-6 h-6 text-amber-400"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-white/10 flex items-center justify-between">
+                    <h3 class="font-bold">Recent Activity</h3>
+                    <button onclick="app.loadAdminView('reports-activity')" class="text-sm text-[var(--theme-accent)] hover:underline">View All</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-dark">
+                        <thead>
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Action</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-recent"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- EMPLOYEES -->
+    <template id="subview-employees">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <h2 class="text-2xl font-bold">Employees</h2>
+                <div class="flex flex-wrap gap-3 items-center">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40"></i>
+                        <input type="text" id="admin-emp-search" placeholder="Search..." class="input-dark rounded-lg pl-10 pr-4 py-2 text-sm w-48" onkeyup="app.filterAdminEmployees()">
+                    </div>
+                    <button onclick="app.openEmployeeModal()" class="btn-primary px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Add Employee
+                    </button>
+                    <button onclick="app.downloadEmployeesTemplate()" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                        Template
+                    </button>
+                    <button onclick="app.openImportEmployeesModal()" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        Import
+                    </button>
+                    <button onclick="app.exportEmployeesCSV()" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export
+                    </button>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full table-dark">
+                        <thead>
+                            <tr>
+                                <th onclick="app.setEmployeesSort('name')" class="text-left px-4 py-3 text-sm font-medium cursor-pointer">Employee</th>
+                                <th onclick="app.setEmployeesSort('role')" class="text-left px-4 py-3 text-sm font-medium cursor-pointer">Role</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Contact</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Off Days</th>
+                                <th onclick="app.setEmployeesSort('status')" class="text-left px-4 py-3 text-sm font-medium cursor-pointer">Status</th>
+                                <th class="text-right px-4 py-3 text-sm font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-emp-table"></tbody>
+                    </table>
+                </div>
+                <div class="flex items-center justify-between p-4 border-t border-white/10 bg-white/5 text-sm">
+                    <div id="admin-emp-range" class="text-white/60">Showing 0-0 of 0</div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="app.changeEmployeesPage(-1)" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-white/80">Prev</button>
+                        <span id="admin-emp-page" class="text-white">1</span>
+                        <button onclick="app.changeEmployeesPage(1)" class="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-white/80">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Employee Modal -->
+        <div id="employee-modal" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="app.closeEmployeeModal()"></div>
+            <div class="absolute inset-0 flex items-center justify-center p-4">
+                <div class="glass-card rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+                    <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+                        <h3 id="emp-modal-title" class="font-bold">Add Employee</h3>
+                        <button onclick="app.closeEmployeeModal()" class="p-1 hover:bg-white/10 rounded-lg transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <form onsubmit="app.saveEmployee(event)" class="p-4 space-y-4 overflow-y-auto flex-grow">
+                        <input type="hidden" id="emp-id">
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Full Name *</label>
+                            <input type="text" id="emp-name" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Gender</label>
+                                <select id="emp-gender" class="w-full input-dark rounded-lg px-3 py-2 text-sm" onchange="app.updateGenderAvatar()">
+                                    <option value="">Select</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-white/60 text-xs mb-1">Job Role *</label>
+                                <input type="text" id="emp-role" required class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Display Order Number (optional)</label>
+                            <input type="number" id="emp-display-order" min="1" class="w-full input-dark rounded-lg px-3 py-2 text-sm" placeholder="e.g., 1">
+                        </div>
+                        
+                        <!-- Employee PIN (4-digit) -->
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Password (4-digit PIN)</label>
+                            <div class="relative">
+                                <input type="password" inputmode="numeric" pattern="\d{4}" maxlength="4" id="emp-pin" class="w-full input-dark rounded-lg px-3 py-2 pr-10 text-sm" placeholder="••••" aria-label="Employee PIN">
+                                <button type="button" onclick="app.toggleEmpPinVisibility()" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-white/10 text-white/60" title="Show/Hide">
+                                    <i id="emp-pin-eye" data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <p class="text-white/30 text-[11px] mt-1">Must be exactly 4 digits. Stored securely.</p>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Account Status</label>
+                            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                <div>
+                                    <p class="text-sm font-medium">Active Employee</p>
+                                    <p class="text-xs text-white/50">Inactive employees won’t appear in Employee Portal</p>
+                                </div>
+                                <button type="button" id="emp-active-toggle" onclick="app.toggleEmpActive()" class="relative w-12 h-6 rounded-full transition-colors bg-green-500">
+                                    <span id="emp-active-knob" class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform" style="transform: translateX(24px);"></span>
+                                </button>
+                                <input type="hidden" id="emp-active" value="true">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Mobile</label>
+                                <input type="tel" id="emp-mobile" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-white/60 text-xs mb-1">Email</label>
+                                <input type="email" id="emp-email" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Off Days</label>
+                            <div class="flex flex-wrap gap-2">
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-0" class="rounded"> Sun</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-1" class="rounded"> Mon</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-2" class="rounded"> Tue</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-3" class="rounded"> Wed</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-4" class="rounded"> Thu</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-5" class="rounded"> Fri</label>
+                                <label class="flex items-center gap-1 text-xs"><input type="checkbox" id="off-6" class="rounded"> Sat</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-white/60 text-xs mb-1">Photo (Optional)</label>
+                            <div class="flex items-center gap-4">
+                                <img id="emp-photo-preview" src="" class="w-16 h-16 rounded-full bg-slate-700 object-cover">
+                                <div class="flex-grow space-y-2">
+                                    <input type="file" id="emp-photo-file" accept="image/*" class="hidden" onchange="app.handlePhotoUpload(event)">
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('emp-photo-file').click()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Upload</button>
+                                        <button type="button" onclick="app.randomizeAvatar()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs transition">Random</button>
+                                    </div>
+                                    <p class="text-white/30 text-xs">Based on gender if not uploaded</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 pt-2">
+                            <button type="button" onclick="app.closeEmployeeModal()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Cancel</button>
+                            <button type="submit" class="flex-1 py-2 btn-primary rounded-lg text-sm font-medium">Save</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Import Employees Modal -->
+        <div id="import-employees-modal" class="fixed inset-0 z-50 hidden">
+            <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="app.closeImportEmployeesModal()"></div>
+            <div class="absolute inset-0 flex items-center justify-center p-4">
+                <div class="glass-card rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+                    <div class="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+                        <h3 class="font-bold">Import Employees (CSV)</h3>
+                        <button onclick="app.closeImportEmployeesModal()" class="p-1 hover:bg-white/10 rounded-lg transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 space-y-4 overflow-y-auto flex-grow">
+                        <p class="text-white/60 text-sm">Select a CSV file that matches the template. Required fields: <span class="font-semibold text-white">name, role</span>. Optional: gender (male/female), mobile, email, offDays (comma-separated like "0,6" for Sun & Sat), photo (URL).</p>
+                        <input type="file" id="import-employees-file" accept=".csv" class="w-full input-dark rounded-lg px-3 py-2 text-sm">
+                        <div class="flex gap-3 pt-2">
+                            <button onclick="app.downloadEmployeesTemplate()" class="flex-1 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition">Download Template</button>
+                            <button onclick="app.handleImportEmployees()" class="flex-1 py-2 btn-primary rounded-lg text-sm font-medium">Import</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- REPORTS ACTIVITY -->
+    <template id="subview-reports-activity">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Activity Log</h2>
+                    <p class="text-white/50 text-sm">All clock in/out records</p>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40"></i>
+                        <input type="text" id="activity-search" placeholder="Search..." class="input-dark rounded-lg pl-10 pr-4 py-2 text-sm w-48" onkeyup="app.setActivitySearch(this.value)">
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="app.exportCSV('activity')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Export CSV
+                        </button>
+                        <button onclick="app.confirmClearHistory()" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm flex items-center gap-2 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="overflow-x-auto max-h-[600px] custom-scrollbar">
+                    <table class="w-full table-dark">
+                        <thead class="sticky top-0 bg-slate-800">
+                            <tr>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Date</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Time</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Employee</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Role</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Photo</th>
+                                <th class="text-left px-4 py-3 text-sm font-medium">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activity-table"></tbody>
+                    </table>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-t border-white/10 bg-white/5 text-sm">
+                    <div id="activity-range" class="text-white/60">Showing 0-0 of 0</div>
+                    <div id="activity-loading" class="text-white/40 hidden">Loading...</div>
+                    <div id="activity-pagination" class="flex items-center gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- REPORTS WEEKLY -->
+    <template id="subview-reports-weekly">
+        <div class="fade-in max-w-6xl mx-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold">Weekly Report</h2>
+                    <p class="text-white/50 text-sm">Sessions (Clock In/Out) and total hours per day</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.exportCSV('weekly')" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Export Excel
+                    </button>
+                    <button onclick="app.exportWeeklyAllEmployeesExcel()" class="px-4 py-2 btn-primary rounded-lg text-sm flex items-center gap-2 transition">
+                        <i data-lucide="file-down" class="w-4 h-4"></i>
+                        Export All (Excel)
+                    </button>
+                </div>
+            </div>
+            <div class="glass-card rounded-xl overflow-hidden">
+                <div class="p-4 border-b border-white/10">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="relative">
+                            <label class="block text-white/50 text-xs mb-1">Employee</label>
+                            <div class="relative">
+                                <input type="text" id="weekly-emp-search" placeholder="Search employee..." class="w-full input-dark rounded-lg px-3 py-2 text-sm" onfocus="app.showWeeklyDropdown()" onkeyup="app.filterWeeklyDropdown()">
+                                <input type="hidden" id="weekly-emp-id">

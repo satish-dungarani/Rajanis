@@ -280,6 +280,13 @@
                             <span id="action-last-activity" class="text-sm font-mono">--</span>
                         </div>
                     </div>
+                    <!-- Today's Clock History -->
+                    <div class="glass-card-light rounded-xl p-4 mb-6 text-left max-h-48 overflow-y-auto">
+                        <h3 class="text-white/70 text-sm font-semibold mb-3">Today's Clock Records</h3>
+                        <div id="action-clock-history" class="space-y-2 text-xs">
+                            <p class="text-white/40">No records yet</p>
+                        </div>
+                    </div>
                     <button id="action-btn" class="w-full py-4 rounded-xl font-bold text-lg transition-all active:scale-95"></button>
                     <div class="mt-6 flex items-center justify-center gap-2 text-white/40">
                         <i data-lucide="clock" class="w-4 h-4"></i>
@@ -1228,9 +1235,33 @@
                 try {
                     const { data: employees, error: empErr } = await this.data.supabase.from('employees').select('*');
                     if (empErr) throw empErr;
-                    const { data: history, error: histErr } = await this.data.supabase.from('history').select('*').order('timestamp', { ascending: false });
-                    if (histErr) throw histErr;
-                    return { employees: (employees || []).map(this.mapEmployeeFromDB), history: (history || []).map(this.mapHistoryFromDB) };
+                    
+                    let allHistory = [];
+                    let page = 0;
+                    let hasMore = true;
+                    const pageSize = 1000;
+                    
+                    while (hasMore) {
+                        const { data: historyPage, error: histErr } = await this.data.supabase
+                            .from('history')
+                            .select('*')
+                            .order('timestamp', { ascending: false })
+                            .range(page * pageSize, (page + 1) * pageSize - 1);
+                        
+                        if (histErr) throw histErr;
+                        
+                        if (!historyPage || historyPage.length === 0) {
+                            hasMore = false;
+                        } else {
+                            allHistory = allHistory.concat(historyPage);
+                            if (historyPage.length < pageSize) {
+                                hasMore = false;
+                            }
+                            page++;
+                        }
+                    }
+                    
+                    return { employees: (employees || []).map(this.mapEmployeeFromDB), history: allHistory.map(this.mapHistoryFromDB) };
                 } catch (e) {
                     this.logError('dbReadEmployeesAndHistory', e);
                     throw e;
@@ -2542,6 +2573,26 @@
                 btn.onclick = () => this.clockAction('in');
             }
             lastAct.textContent = emp.lastAction ? this.formatDateTime(emp.lastAction) : 'No activity';
+            
+            // Display today's clock history
+            const today = new Date().toDateString();
+            const todayRecords = this.data.history.filter(h => h.employeeId === emp.id && new Date(h.timestamp).toDateString() === today);
+            const historyContainer = document.getElementById('action-clock-history');
+            
+            if (todayRecords.length === 0) {
+                historyContainer.innerHTML = '<p class="text-white/40">No records yet</p>';
+            } else {
+                historyContainer.innerHTML = todayRecords
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                    .map(record => `
+                        <div class="flex justify-between items-center p-2 bg-white/5 rounded">
+                            <span class="text-white/70">${record.action}</span>
+                            <span class="text-white/50 font-mono">${this.formatTime(record.timestamp)}</span>
+                        </div>
+                    `)
+                    .join('');
+            }
+            
             lucide.createIcons();
         },
 
@@ -4114,98 +4165,354 @@
                 employees = [emp];
             }
 
-            // Determine max sessions across all selected employees and all weeks in range
+            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const isSingleEmployee = employees.length === 1;
+
+            // Collect data for all employees
+            const empDataMap = {};
             let maxSessions = 0;
-            const byEmpWeeks = new Map();
+            let maxWeeks = 0;
+
             employees.forEach(emp => {
-                const weeks = [];
+                const empReportData = [];
+                let empTotal = 0;
                 let cursor = new Date(startDate);
+                const weeksList = [];
+                
                 while (cursor <= endDate) {
                     const weekStart = new Date(cursor);
                     const byDay = this.getWeeklySessionsForEmployee(emp.id, weekStart);
-                    Object.values(byDay).forEach(info => {
-                        const c = (info.sessions || []).length;
-                        if (c > maxSessions) maxSessions = c;
-                    });
-                    weeks.push({ weekStart, byDay });
+                    const weekData = { weekStart, days: [] };
+                    
+                    for (let i = 0; i < 7; i++) {
+                        const day = new Date(weekStart);
+                        day.setDate(day.getDate() + i);
+                        const key = day.toDateString();
+                        const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
+                        const isOff = (emp.offDays || []).includes(i);
+                        
+                        if (info.sessions.length > maxSessions) maxSessions = info.sessions.length;
+                        if (!info.missingClockOut) empTotal += info.totalHours;
+                        
+                        const dayRow = {
+                            empName: emp.name,
+                            empRole: emp.role,
+                            empId: emp.id,
+                            date: day,
+                            dayName: dayNames[i],
+                            dayLabel: `${dayNames[i]}, ${this.formatDate(day)}`,
+                            sessions: info.sessions,
+                            totalHours: info.totalHours,
+                            missingClockOut: info.missingClockOut,
+                            note: info.missingClockOut ? 'Missing clock-out' : (info.deductionNote || ''),
+                            isOff
+                        };
+                        empReportData.push(dayRow);
+                        weekData.days.push(dayRow);
+                    }
+                    weeksList.push(weekData);
                     cursor.setDate(cursor.getDate() + 7);
                 }
-                byEmpWeeks.set(emp.id, weeks);
+                
+                maxWeeks = Math.max(maxWeeks, weeksList.length);
+                empDataMap[emp.id] = {
+                    emp,
+                    empTotal,
+                    weeks: weeksList
+                };
             });
+
             maxSessions = Math.max(1, maxSessions);
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const colsPerEmployee = 2 + (maxSessions * 2) + 1;
 
             let html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
                 <style>
-                    body { font-family: Arial, sans-serif; }
-                    table { border-collapse: collapse; width: 100%; font-size: 12px; }
-                    th, td { border: 1px solid #333; padding: 6px; text-align: left; }
-                    th { background: #f1f5f9; font-weight: bold; }
-                    .title { background: #dbe2ea; font-weight: bold; font-size: 14px; }
-                    .employee { background: #cbd5e1; font-weight: bold; }
-                    .week { background: #e5e7eb; font-weight: bold; color: #334155; }
-                    .total { background: #F1A983; font-weight: bold; }
-                    .note { color: #6b7280; font-size: 11px; }
+                    * { margin: 0; padding: 0; }
+                    body { font-family: 'Calibri', 'Arial', sans-serif; background: #fff; color: #333; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th { background: #2c5aa0; color: white; padding: 10px 6px; text-align: left; font-weight: bold; font-size: 11px; border: 1px solid #1a3f5c; }
+                    td { padding: 8px 6px; font-size: 11px; border: 1px solid #ccc; }
+                    .header-row { background: #e8f0f7; border: 1px solid #a8cde8; padding: 8px; font-size: 11px; color: #333; }
+                    .section-title { background: #2c5aa0; color: white; text-align: center; font-size: 14px; font-weight: bold; padding: 10px 6px; border: 1px solid #1a3f5c; }
+                    .summary-header { background: #1a3f5c; color: white; font-weight: bold; padding: 10px 6px; border: 1px solid #1a3f5c; }
+                    .emp-section-header { background: #1a3f5c; color: white; font-weight: bold; padding: 10px 6px; border: 1px solid #1a3f5c; }
+                    .week-header { background: #d9e8f5; color: #2c5aa0; font-weight: bold; padding: 8px 6px; border: 1px solid #a8cde8; }
+                    .col-header { background: #1a3f5c; color: white; font-weight: bold; padding: 8px 6px; border: 1px solid #1a3f5c; }
+                    .footer-note { font-size: 10px; color: #666; margin-top: 15px; padding: 10px; background: #f5f5f5; border-left: 3px solid #2c5aa0; }
                 </style>
             </head><body>`;
 
-            html += `<table>`;
-            html += `<tr class="title"><th colspan="${(maxSessions * 2) + 4}">Custom Report</th></tr>`;
-            html += `<tr class="week"><td colspan="${(maxSessions * 2) + 4}">Range: ${this.formatDate(startDate)} - ${this.formatDate(endDate)}</td></tr>`;
-            html += `</table><br>`;
+            if (isSingleEmployee) {
+                // Single employee: vertical layout (existing format)
+                const empData = empDataMap[employees[0].id];
+                
+                html += `<table style="margin-bottom: 25px;">
+                    <tr>
+                        <td class="section-title" colspan="${colsPerEmployee}">TIME SHEET REPORT</td>
+                    </tr>
+                    <tr>
+                        <td class="header-row" style="width: 25%;"><strong>Period:</strong></td>
+                        <td class="header-row" colspan="${colsPerEmployee - 1}">${this.formatDate(startDate)} to ${this.formatDate(endDate)}</td>
+                    </tr>
+                    <tr>
+                        <td class="header-row" style="width: 25%;"><strong>Generated on:</strong></td>
+                        <td class="header-row" colspan="${colsPerEmployee - 1}">${new Date().toLocaleString()}</td>
+                    </tr>
+                </table>`;
 
-            employees.forEach(emp => {
-                const weeks = byEmpWeeks.get(emp.id) || [];
-                let empTotal = 0;
+                html += `<table style="margin-bottom: 25px;">
+                    <tr>
+                        <th class="summary-header" colspan="${colsPerEmployee}">EMPLOYEE SUMMARY</th>
+                    </tr>
+                    <tr>
+                        <th class="summary-header" style="width: 35%;">Employee Name</th>
+                        <th class="summary-header" style="width: 35%;">Position</th>
+                        <th class="summary-header" style="text-align: right; width: 30%;">Total Hours</th>
+                        ${Array(colsPerEmployee - 3).fill('<th class="summary-header" style="display: none;"></th>').join('')}
+                    </tr>
+                    <tr>
+                        <td><strong>${empData.emp.name}</strong></td>
+                        <td>${empData.emp.role}</td>
+                        <td style="text-align: right; font-weight: bold; background: #c8e6c9;">${empData.empTotal.toFixed(2)}</td>
+                        ${Array(colsPerEmployee - 3).fill('<td style="display: none;"></td>').join('')}
+                    </tr>
+                    <tr class="grand-total" style="background: #ffb74d; font-weight: bold;">
+                        <td colspan="${colsPerEmployee - 1}" style="text-align: right;"><strong>GRAND TOTAL:</strong></td>
+                        <td style="text-align: right;"><strong>${empData.empTotal.toFixed(2)} hrs</strong></td>
+                    </tr>
+                </table>`;
 
-                html += `<table>`;
-                html += `<tr class="employee"><td colspan="${(maxSessions * 2) + 4}">Employee: ${emp.name || '-'} (${emp.role || '-'})</td></tr>`;
-                const sessionHeaders = [];
-                for (let i = 1; i <= maxSessions; i++) {
-                    sessionHeaders.push(`<th>In${i}</th><th>Out${i}</th>`);
-                }
-                html += `<tr><th>Day</th>${sessionHeaders.join('')}<th>Total Hours</th><th>Notes</th></tr>`;
+                html += `<div style="margin-top: 30px;">
+                    <table>
+                        <tr>
+                            <td class="section-title" colspan="${colsPerEmployee}">DETAILED TIME SHEET</td>
+                        </tr>
+                    </table>`;
 
-                weeks.forEach(({ weekStart, byDay }) => {
-                    const weekEnd = new Date(weekStart);
+                empData.weeks.forEach((week, weekIdx) => {
+                    const weekEnd = new Date(week.weekStart);
                     weekEnd.setDate(weekEnd.getDate() + 6);
-                    html += `<tr class="week"><td colspan="${(maxSessions * 2) + 4}">Week: ${this.formatDate(weekStart)} - ${this.formatDate(weekEnd)}</td></tr>`;
+                    const weekLabel = `${this.formatDate(week.weekStart)} - ${this.formatDate(weekEnd)}`;
+
+                    html += `<table style="margin-top: ${weekIdx > 0 ? '10px' : '0'};">
+                        <tr>
+                            <td class="emp-section-header" colspan="${colsPerEmployee}">
+                                ${empData.emp.name} <span style="color: #b3d9ff;">(${empData.emp.role})</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="week-header" colspan="${colsPerEmployee}">Week ${weekIdx + 1}: ${weekLabel}</td>
+                        </tr>
+                        <tr style="background: #1a3f5c;">
+                            <th class="col-header">Date</th>
+                            <th class="col-header">Day</th>`;
+                    
+                    for (let s = 1; s <= maxSessions; s++) {
+                        html += `<th class="col-header">Clock In ${s}</th><th class="col-header">Clock Out ${s}</th>`;
+                    }
+                    html += `<th class="col-header" style="text-align: right;">Hours</th></tr>`;
+
+                    const daysByDate = {};
+                    week.days.forEach(day => {
+                        const dateKey = day.date.toDateString();
+                        if (!daysByDate[dateKey]) daysByDate[dateKey] = day;
+                    });
 
                     for (let i = 0; i < 7; i++) {
-                        const dayDate = new Date(weekStart);
+                        const dayDate = new Date(week.weekStart);
                         dayDate.setDate(dayDate.getDate() + i);
-                        const key = dayDate.toDateString();
-                        const info = byDay[key] || { sessions: [], totalHours: 0, missingClockOut: false, deductionNote: '' };
+                        const dayRow = daysByDate[dayDate.toDateString()];
+                        
+                        if (!dayRow) continue;
 
-                        const cells = [];
+                        const isOff = dayRow.isOff;
+                        const bgColor = isOff ? '#ffe082' : '#fff';
+                        const hoursDisplay = dayRow.missingClockOut ? '⚠ PENDING' : dayRow.totalHours.toFixed(2);
+
+                        html += `<tr style="background: ${bgColor};">
+                            <td style="font-weight: 600; color: #2c5aa0;">${this.formatDate(dayRow.date)}</td>
+                            <td>${dayRow.dayName}</td>`;
+
                         for (let s = 0; s < maxSessions; s++) {
-                            const sess = info.sessions[s];
-                            if (sess) {
-                                cells.push(this.formatTime(sess.in));
-                                cells.push(sess.out ? this.formatTime(sess.out) : 'In Progress');
-                            } else {
-                                cells.push('');
-                                cells.push('');
-                            }
+                            const sess = dayRow.sessions[s];
+                            const inTime = sess ? this.formatTime(sess.in) : '-';
+                            const outTime = sess && sess.out ? this.formatTime(sess.out) : '-';
+                            html += `<td style="background: #e8f5e9;">${inTime}</td><td style="background: #fff3e0;">${outTime}</td>`;
                         }
 
-                        const hours = info.missingClockOut ? '' : info.totalHours.toFixed(2);
-                        const note = info.missingClockOut ? 'Missing clock-out' : (info.deductionNote || '');
-                        if (!info.missingClockOut) empTotal += info.totalHours;
-
-                        html += `<tr>`;
-                        html += `<td>${dayNames[i]} ${this.formatDate(dayDate)}</td>`;
-                        html += cells.map(c => `<td>${c}</td>`).join('');
-                        html += `<td>${hours}</td>`;
-                        html += `<td>${note}</td>`;
-                        html += `</tr>`;
+                        const hoursClass = isOff ? '#ffe082' : (dayRow.missingClockOut ? '#ffcdd2' : '#fff9c4');
+                        html += `<td style="text-align: right; font-weight: bold; background: ${hoursClass};">${hoursDisplay}</td></tr>`;
                     }
+
+                    const weekTotal = week.days.reduce((sum, d) => sum + (d.missingClockOut ? 0 : d.totalHours), 0);
+                    html += `<tr style="background: #fff;">
+                        <td colspan="${2 + (maxSessions * 2)}" style="text-align: right; font-weight: bold; color: #2c5aa0;">Week Total:</td>
+                        <td style="text-align: right; font-weight: bold; background: #fff9c4;">${weekTotal.toFixed(2)}</td>
+                    </tr></table>`;
                 });
 
-                html += `<tr class="total"><td><strong>Total</strong></td>${Array(maxSessions * 2).fill('<td></td>').join('')}<td><strong>${empTotal.toFixed(2)}</strong></td><td></td></tr>`;
-                html += `<tr><td class="note">Notes:</td><td colspan="${(maxSessions * 2) + 3}" class="note">Missing clock-out days are excluded from totals. Sessions over 8 hours deduct 30 minutes.</td></tr>`;
-                html += `</table><br>`;
-            });
+                html += `</div>`;
+            } else {
+                // Multiple employees: side-by-side layout
+                const empList = Object.values(empDataMap);
+                let grandTotal = empList.reduce((sum, ed) => sum + ed.empTotal, 0);
+
+                // Header row - one per employee side by side
+                html += `<table style="margin-bottom: 0;">
+                    <tr>`;
+                empList.forEach(ed => {
+                    html += `<td class="section-title" colspan="${colsPerEmployee}">TIME SHEET REPORT</td>`;
+                });
+                html += `</tr>
+                    <tr>`;
+                empList.forEach(ed => {
+                    html += `<td class="header-row"><strong>Period:</strong></td>
+                             <td class="header-row" colspan="${colsPerEmployee - 1}">${this.formatDate(startDate)} to ${this.formatDate(endDate)}</td>`;
+                });
+                html += `</tr>
+                    <tr>`;
+                empList.forEach(ed => {
+                    html += `<td class="header-row"><strong>Generated on:</strong></td>
+                             <td class="header-row" colspan="${colsPerEmployee - 1}">${new Date().toLocaleString()}</td>`;
+                });
+                html += `</tr>
+                </table>`;
+
+                // Summary section - side by side
+                html += `<table style="margin-bottom: 0;">
+                    <tr>`;
+                empList.forEach(ed => {
+                    html += `<th class="summary-header" colspan="${colsPerEmployee}">EMPLOYEE SUMMARY</th>`;
+                });
+                html += `</tr>
+                    <tr>`;
+                empList.forEach(ed => {
+                    html += `<th class="summary-header" style="width: 35%;">Employee Name</th>
+                             <th class="summary-header" style="width: 35%;">Position</th>
+                             <th class="summary-header" style="text-align: right;">Total Hours</th>
+                             ${Array(colsPerEmployee - 3).fill('<th class="summary-header"></th>').join('')}`;
+                });
+                html += `</tr>
+                    <tr>`;
+                empList.forEach(ed => {
+                    html += `<td><strong>${ed.emp.name}</strong></td>
+                             <td>${ed.emp.role}</td>
+                             <td style="text-align: right; font-weight: bold; background: #c8e6c9;">${ed.empTotal.toFixed(2)}</td>
+                             ${Array(colsPerEmployee - 3).fill('<td></td>').join('')}`;
+                });
+                html += `</tr>
+                    <tr style="background: #ffb74d; font-weight: bold;">`;
+                empList.forEach((ed, idx) => {
+                    html += `<td colspan="${colsPerEmployee - 1}" style="text-align: right;"><strong>${idx === 0 ? 'GRAND TOTAL:' : ''}</strong></td>
+                             <td style="text-align: right;"><strong>${idx === 0 ? grandTotal.toFixed(2) + ' hrs' : ''}</strong></td>`;
+                });
+                html += `</tr>
+                </table>`;
+
+                // Detailed time sheet - side by side
+                html += `<div style="margin-top: 30px;">
+                    <table>
+                        <tr>`;
+                empList.forEach(ed => {
+                    html += `<td class="section-title" colspan="${colsPerEmployee}">DETAILED TIME SHEET</td>`;
+                });
+                html += `</tr>
+                    </table>`;
+
+                // Render weeks side by side
+                for (let weekIdx = 0; weekIdx < maxWeeks; weekIdx++) {
+                    html += `<table style="margin-top: 10px;">
+                        <tr>`;
+                    empList.forEach(ed => {
+                        const week = ed.weeks[weekIdx];
+                        if (week) {
+                            const weekEnd = new Date(week.weekStart);
+                            weekEnd.setDate(weekEnd.getDate() + 6);
+                            const weekLabel = `${this.formatDate(week.weekStart)} - ${this.formatDate(weekEnd)}`;
+                            html += `<td class="emp-section-header" colspan="${colsPerEmployee}">
+                                ${ed.emp.name} <span style="color: #b3d9ff;">(${ed.emp.role})</span>
+                            </td>`;
+                        } else {
+                            html += `<td colspan="${colsPerEmployee}"></td>`;
+                        }
+                    });
+                    html += `</tr>
+                        <tr>`;
+                    empList.forEach(ed => {
+                        const week = ed.weeks[weekIdx];
+                        if (week) {
+                            const weekEnd = new Date(week.weekStart);
+                            weekEnd.setDate(weekEnd.getDate() + 6);
+                            const weekLabel = `${this.formatDate(week.weekStart)} - ${this.formatDate(weekEnd)}`;
+                            html += `<td class="week-header" colspan="${colsPerEmployee}">Week ${weekIdx + 1}: ${weekLabel}</td>`;
+                        } else {
+                            html += `<td colspan="${colsPerEmployee}"></td>`;
+                        }
+                    });
+                    html += `</tr>
+                        <tr style="background: #1a3f5c;">`;
+                    empList.forEach(ed => {
+                        html += `<th class="col-header">Date</th><th class="col-header">Day</th>`;
+                        for (let s = 1; s <= maxSessions; s++) {
+                            html += `<th class="col-header">Clk ${s}</th><th class="col-header">Out ${s}</th>`;
+                        }
+                        html += `<th class="col-header" style="text-align: right;">Hours</th>`;
+                    });
+                    html += `</tr>`;
+
+                    // Days rows
+                    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+                        html += `<tr>`;
+                        empList.forEach(ed => {
+                            const week = ed.weeks[weekIdx];
+                            if (week && week.days[dayIdx]) {
+                                const dayRow = week.days[dayIdx];
+                                const isOff = dayRow.isOff;
+                                const bgColor = isOff ? '#ffe082' : '#fff';
+                                const hoursDisplay = dayRow.missingClockOut ? '⚠' : dayRow.totalHours.toFixed(2);
+
+                                html += `<td style="background: ${bgColor}; font-weight: 600; color: #2c5aa0;">${this.formatDate(dayRow.date)}</td>
+                                         <td style="background: ${bgColor};">${dayRow.dayName}</td>`;
+
+                                for (let s = 0; s < maxSessions; s++) {
+                                    const sess = dayRow.sessions[s];
+                                    const inTime = sess ? this.formatTime(sess.in) : '-';
+                                    const outTime = sess && sess.out ? this.formatTime(sess.out) : '-';
+                                    html += `<td style="background: #e8f5e9; font-size: 10px;">${inTime}</td>
+                                             <td style="background: #fff3e0; font-size: 10px;">${outTime}</td>`;
+                                }
+
+                                const hoursClass = isOff ? '#ffe082' : (dayRow.missingClockOut ? '#ffcdd2' : '#fff9c4');
+                                html += `<td style="text-align: right; font-weight: bold; background: ${hoursClass}; font-size: 10px;">${hoursDisplay}</td>`;
+                            } else {
+                                html += `<td colspan="${colsPerEmployee}"></td>`;
+                            }
+                        });
+                        html += `</tr>`;
+                    }
+
+                    // Week totals
+                    html += `<tr style="background: #fff;">`;
+                    empList.forEach(ed => {
+                        const week = ed.weeks[weekIdx];
+                        const weekTotal = week ? week.days.reduce((sum, d) => sum + (d.missingClockOut ? 0 : d.totalHours), 0) : 0;
+                        html += `<td colspan="${2 + (maxSessions * 2)}" style="text-align: right; font-weight: bold; color: #2c5aa0;">Week Total:</td>
+                                 <td style="text-align: right; font-weight: bold; background: #fff9c4;">${weekTotal.toFixed(2)}</td>`;
+                    });
+                    html += `</tr>
+                    </table>`;
+                }
+
+                html += `</div>`;
+            }
+
+            html += `<div class="footer-note">
+                <strong>Notes:</strong><br>
+                • Days marked as OFF are designated rest days and do not count towards working hours.<br>
+                • Sessions with missing clock-out are excluded from hour calculations and marked with ⚠.<br>
+                • Sessions over 8 hours have 30 minutes deducted as break time.<br>
+                • All times are displayed in 12-hour format with AM/PM.
+            </div>`;
 
             html += `</body></html>`;
 
@@ -4213,9 +4520,23 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `custom_report_${this.formatDate(startDate).replace(/\//g,'-')}_to_${this.formatDate(endDate).replace(/\//g,'-')}.xls`;
+            
+            const now = new Date();
+            const pad2 = (n) => String(n).padStart(2, '0');
+            const dd = pad2(now.getDate());
+            const mm = pad2(now.getMonth() + 1);
+            const yy = String(now.getFullYear()).slice(-2);
+            const hour24 = now.getHours();
+            const hh12 = pad2(hour24 % 12 === 0 ? 12 : hour24 % 12);
+            const mins = pad2(now.getMinutes());
+            const tt = hour24 >= 12 ? 'PM' : 'AM';
+            let baseName = (employees.length === 1 && employees[0] && employees[0].name) ? employees[0].name : 'Employees';
+            baseName = String(baseName).replace(/[^a-zA-Z0-9-_]/g, '_').replace(/_+/g, '_');
+            const filename = `${baseName}_${dd}${mm}${yy}${hh12}${mins}${tt}.xls`;
+            a.download = filename;
             a.click();
             URL.revokeObjectURL(url);
+            this.uiToast('Report exported successfully!', 'success');
         },
 
         // SETTINGS
